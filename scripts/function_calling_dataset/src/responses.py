@@ -25,11 +25,25 @@ class FunctionResponseGeneratorTask(TextGenerationTask):
 
     @property
     def output_args_names(self):
-        return ["function_call"]
+        return ["function_call", "function_call_parses", "function_call_models"]
 
     def parse_output(self, output: str) -> Dict[str, Any]:
-        function_call = FunctionCallResponse(**json.loads(output)).model_dump_json()
-        return {"function_call": function_call}
+        try:
+            output = json.loads(output)
+        except json.JSONDecodeError:
+            output = literal_eval(output)
+        parses = True
+        try:
+            function_call = FunctionCallResponse(output).model_dump_json()
+            models = True
+        except Exception as e:
+            function_call = str(output)
+            models = False
+        return {
+            "function_call_parses": parses,
+            "function_call_models": models,
+            "function_call": function_call,
+        }
 
     def generate_prompt(self, instruction: str, function: str, **_: Any):
         formatted_prompt = f"Instruction: {instruction}\n"
@@ -45,36 +59,44 @@ class FunctionResponseGeneratorTask(TextGenerationTask):
         )
 
 
-def generate_responses(
+task = FunctionResponseGeneratorTask(
+    system_prompt=(
+        "You are an AI assistant that that performs tasks using functions."
+        "You are are given an instruction and a function."
+        "To use the function, you must respond with a JSON in the correct format."
+    )
+)
+function_response_generator = JSONOpenAILLM(
+    task=task,
+    model="gpt-4-1106-preview",
+)
+
+
+def generate(
     dataset: Dataset,
     num_generations: int = 2,
     batch_size: int = 5,
+    checkpoint_strategy=None,
+    max_inputs: int = None,
 ):
-    function_response_generator = JSONOpenAILLM(
-        task=FunctionResponseGeneratorTask(
-            system_prompt=(
-                "You are an AI assistant that that performs tasks using functions."
-                "You are are given an instruction and a function."
-                "To use the function, you must respond with a JSON in the correct format."
-            )
-        ),
-        model="gpt-4-1106-preview",
-    )
 
     pipeline = Pipeline(generator=function_response_generator)
-
+    dataset = Dataset.from_list(dataset.to_list()[:max_inputs])
     _response_dataset = pipeline.generate(
         dataset=dataset,
         num_generations=num_generations,
         batch_size=batch_size,
-        checkpoint_strategy=None,
+        checkpoint_strategy=checkpoint_strategy,
     )
 
-    def unwrap_function_responses_dataset(dataset):
-        df = dataset.to_pandas().drop(columns=["__index_level_0__"]).reset_index()
-        df = df.explode("function_call")
-        return Dataset.from_pandas(df)
-
-    response_dataset = unwrap_function_responses_dataset(_response_dataset)
-    response_dataset = filter_column_not_none(response_dataset, "function_call")
+    response_dataset = unwrap(_response_dataset)
     return response_dataset
+
+
+def unwrap(dataset):
+    df = dataset.to_pandas().reset_index()
+    df = df.loc[:, ~df.columns.str.contains("_index_")]
+    df = df.explode(task.output_args_names)
+    dataset = Dataset.from_pandas(df)
+    dataset = filter_column_not_none(dataset, "function_call")
+    return dataset

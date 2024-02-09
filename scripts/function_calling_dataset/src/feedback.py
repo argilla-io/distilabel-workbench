@@ -1,13 +1,12 @@
 from textwrap import dedent
 from typing import Any
 
-
+from distilabel.dataset import Dataset
 from distilabel.llm import OpenAILLM
 from distilabel.pipeline import Pipeline
 from distilabel.tasks import Prompt
 from distilabel.tasks.preference.ultrafeedback import Rating, UltraFeedbackTask
 from dotenv import load_dotenv
-from torch import batch_norm
 
 load_dotenv("../.env")
 
@@ -50,17 +49,23 @@ class FunctionFeedbackTask(UltraFeedbackTask):
             print(e)
             rating = 0
             feedback = "No feedback: Could not parse output."
+        try:
+            rating = int(float(rating))
+        except ValueError:
+            pass
         output = {
             "feedback": feedback,
-            "rating": int(rating),
+            "rating": rating,
         }
         return output
 
 
-def generate_feedback(
+def generate(
     dataset: "Dataset",
     batch_size: int = 5,
     num_generations: int = 2,
+    checkpoint_strategy=None,
+    max_inputs: int = None,
 ) -> "CustomDataset":
     ultrafeedback_task = FunctionFeedbackTask(
         system_prompt="Your role is to evaluate text quality based on given criteria",
@@ -96,10 +101,11 @@ def generate_feedback(
         model="gpt-4",
     )
     pipeline = Pipeline(labeller=labeller)
+    dataset = Dataset.from_list(dataset.to_list()[:max_inputs])
     feedback_dataset = pipeline.generate(
         dataset=dataset,
         num_generations=num_generations,
         batch_size=batch_size,
-        checkpoint_strategy=None,
+        checkpoint_strategy=checkpoint_strategy,
     )
     return feedback_dataset

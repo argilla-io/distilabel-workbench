@@ -22,10 +22,12 @@ class FunctionInstructionTask(SelfInstructTask):
         return {"instructions": list(instructions)}
 
 
-def generate_instructions(
+def generate(
     dataset: Dataset,
     num_generations: int = 4,
     batch_size: int = 5,
+    checkpoint_strategy=None,
+    max_inputs: int = None,
 ):
     task = FunctionInstructionTask(
         application_description=(
@@ -48,25 +50,25 @@ def generate_instructions(
     )
     pipeline = Pipeline(generator=instruction_generator)
     dataset = dataset.rename_column("function", "input")
+    dataset = Dataset.from_list(dataset.to_list()[:max_inputs])
     _instructions_dataset = pipeline.generate(
         dataset=dataset,
         num_generations=num_generations,
         batch_size=batch_size,
-        checkpoint_strategy=None,
+        checkpoint_strategy=checkpoint_strategy,
     )
 
-    def unwrap_functions_instructions(dataset):
-        df = dataset.to_pandas()
-        df = df.explode("instructions").explode("instructions")
-        df = df.explode("input")
-        df = df.rename(columns={"input": "function", "instructions": "instruction"})
-        # drop any column with _index_ in the name
-        df = df.loc[:, ~df.columns.str.contains("_index_")]
-        return Dataset.from_pandas(df)
-
-    instructions_dataset = unwrap_functions_instructions(_instructions_dataset)
-    instructions_dataset = instructions_dataset.rename_column(
-        "instructions", "instruction"
-    )
-    instructions_dataset = filter_column_not_none(instructions_dataset, "instruction")
+    instructions_dataset = unwrap(_instructions_dataset)
     return instructions_dataset
+
+
+def unwrap(dataset):
+    df = dataset.to_pandas()
+    df = df.explode("instructions").explode("instructions")
+    df = df.explode("input")
+    df = df.rename(columns={"input": "function", "instructions": "instruction"})
+    # drop any column with _index_ in the name
+    df = df.loc[:, ~df.columns.str.contains("_index_")]
+    dataset = Dataset.from_pandas(df)
+    dataset = filter_column_not_none(dataset, "instruction")
+    return dataset

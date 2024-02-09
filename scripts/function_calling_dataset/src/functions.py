@@ -51,40 +51,43 @@ class FunctionGeneratorTask(TextGenerationTask):
         return Prompt(system_prompt=system_prompt, formatted_prompt=input)
 
 
-def generate_functions(
-    max_domains: int = 10,
+task = FunctionGeneratorTask()
+
+
+def generate(
     num_generations: int = 2,
     batch_size: int = 5,
+    checkpoint_strategy=None,
+    max_inputs: int = 10,
 ):
     """Generate functions using GPT-4.
     Args:
-        max_domains: The maximum number of domains to generate functions for.
+        max_input: The maximum number of domains to generate functions for.
     """
-    domains = example_function_domain[:max_domains]
-    task = FunctionGeneratorTask()
+    domains = example_function_domain[:max_inputs]
     function_generator = JSONOpenAILLM(
         task=task,
         model="gpt-4-1106-preview",
         max_new_tokens=4096,
     )
-    function_domain_dataset = Dataset.from_dict({"input": domains})
-
+    dataset = Dataset.from_dict({"input": domains})
     pipeline = Pipeline(generator=function_generator)
-
     functions_dataset = pipeline.generate(
-        dataset=function_domain_dataset,
+        dataset=dataset,
         num_generations=num_generations,
         batch_size=batch_size,
-        checkpoint_strategy=None,
+        checkpoint_strategy=checkpoint_strategy,
     )
 
-    def unwrap_functions_instructions(dataset):
-        df = dataset.to_pandas()
-        df = df.explode(task.output_args_names)
-        return Dataset.from_pandas(df)
-
-    functions_dataset = unwrap_functions_instructions(functions_dataset)
-    functions_dataset = functions_dataset.rename_column("input", "domain")
-    functions_dataset = functions_dataset.rename_column("generations", "function")
-    functions_dataset = filter_column_not_none(functions_dataset, "function")
+    functions_dataset = unwrap(functions_dataset)
     return functions_dataset
+
+
+def unwrap(dataset):
+    df = dataset.to_pandas()
+    df = df.explode(task.output_args_names)
+    dataset = Dataset.from_pandas(df)
+    dataset = dataset.rename_column("input", "domain")
+    dataset = dataset.rename_column("generations", "function")
+    dataset = filter_column_not_none(dataset, "function")
+    return dataset

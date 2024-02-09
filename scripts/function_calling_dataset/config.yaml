@@ -1,16 +1,15 @@
 name: dataset-6e09efb3-6f77-4422-949c-0c2b047cd17a
 functions:
-  max_domains: 10
-  num_generations: 5
+  max_inputs: 20
+  num_generations: 2
   batch_size: 10
 instructions:
   num_generations: 10
   batch_size: 10
 reponses:
-  num_generations: 10
+  num_generations: 2
   batch_size: 10
 feedback:
-  num_generations: 10
+  max_inputs: 100
+  num_generations: 2
   batch_size: 10
-dataset_paths:
-  functions: data/dataset-6e09efb3-6f77-4422-949c-0c2b047cd17a/2024-02-09-11-42-17/functions
