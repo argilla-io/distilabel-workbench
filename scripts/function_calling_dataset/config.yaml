@@ -6,10 +6,11 @@ functions:
 instructions:
   num_generations: 10
   batch_size: 10
-reponses:
+responses:
   num_generations: 2
   batch_size: 10
 feedback:
-  max_inputs: 100
   num_generations: 2
   batch_size: 10
+dataset_paths:
+  responses: data/dataset-6e09efb3-6f77-4422-949c-0c2b047cd17a/2024-02-09-15-31-49/checkpoints/responses

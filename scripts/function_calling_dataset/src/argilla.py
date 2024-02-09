@@ -19,8 +19,8 @@ rg.init(
 feedback_dataset = rg.FeedbackDataset(
     fields=[
         rg.TextField(name="instruction", use_markdown=True),
-        rg.TextField(name="function", use_markdown=True),
         rg.TextField(name="function_call", use_markdown=True),
+        rg.TextField(name="function", use_markdown=True),
     ],
     questions=[
         rg.RatingQuestion(name="rating", values=[1, 2, 3, 4]),
@@ -60,7 +60,21 @@ def build_record(row):
             "domain": str(row["domain"]),
             "rating": str(row["rating"]),
         },
+        suggestions=
+        for record in dataset.records:
     )
+    record.suggestions = [
+        {
+            "question_name": "rating",
+            "value": int(row["rating"]),
+            "agent": "gpt-4"
+        },
+        {
+            "question_name": "feedback",
+            "value": row["feedback"],
+            "agent": "gpt-4"
+        },
+    ]
     return record
 
 
