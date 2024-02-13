@@ -1,16 +1,39 @@
-name: dataset-6e09efb3-6f77-4422-949c-0c2b047cd17a
-functions:
-  max_inputs: 20
-  num_generations: 2
-  batch_size: 10
-instructions:
-  num_generations: 10
-  batch_size: 10
-responses:
-  num_generations: 2
-  batch_size: 10
-feedback:
-  num_generations: 2
-  batch_size: 10
-dataset_paths:
-  responses: data/dataset-6e09efb3-6f77-4422-949c-0c2b047cd17a/2024-02-09-15-31-49/checkpoints/responses
+name: fml-generation
+save_frequency: 150
+data:
+  input:
+    instructions: data/dataset-6e09efb3-6f77-4422-949c-0c2b047cd17a/2024-02-09-15-31-49/checkpoints/instructions
+  output:
+    argilla: dataset-6e09efb3-6f77-4422-949c-0c2b047cd17a
+generation:
+  functions:
+    max_inputs: 20
+    num_generations: 2
+    batch_size: 10
+  instructions:
+    num_generations: 10
+    batch_size: 10
+  responses:
+    num_generations: 2
+    batch_size: 10
+  feedback:
+    num_generations: 2
+    batch_size: 10
+    max_inputs: 20
+expansion:
+  # non_calls:
+  #   max_inputs: 2
+  #   num_generations: 2
+  #   batch_size: 5
+  # distractors:
+  #   max_distractors: 3
+  #   max_inputs: 50
+  # feedback:
+  #   num_generations: 2
+  #   batch_size: 10
+
+
+  
+  
+
+  
