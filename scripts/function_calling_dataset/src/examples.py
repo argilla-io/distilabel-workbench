@@ -116,11 +116,21 @@ class FunctionCallResponse(BaseModel):
     arguments: Dict[str, str]
 
 
-example_function_responses = [
-    FunctionCallResponse(name="search_bing", arguments={"query": "Apple stock price"}),
-    FunctionCallResponse(
-        name="move_file",
-        arguments={"source": "file1.txt", "destination": "file2.txt"},
-    ),
-    FunctionCallResponse(name="get_weather", arguments={"location": "New York, NY"}),
-]
+class FunctionCallResponseArray(BaseModel):
+    function_calls: List[FunctionCallResponse]
+
+
+example_function_responses = FunctionCallResponseArray(
+    function_calls=[
+        FunctionCallResponse(
+            name="search_bing", arguments={"query": "Apple stock price"}
+        ),
+        FunctionCallResponse(
+            name="move_file",
+            arguments={"source": "file1.txt", "destination": "file2.txt"},
+        ),
+        FunctionCallResponse(
+            name="get_weather", arguments={"location": "New York, NY"}
+        ),
+    ]
+)

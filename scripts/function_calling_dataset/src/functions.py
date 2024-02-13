@@ -1,5 +1,6 @@
-from ast import literal_eval
 import json
+from ast import literal_eval
+from itertools import combinations
 from typing import Any, Dict
 
 from datasets import Dataset
@@ -7,6 +8,7 @@ from distilabel.llm import JSONOpenAILLM
 from distilabel.pipeline import Pipeline
 from distilabel.tasks import Prompt, TextGenerationTask
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 from src.examples import example_tools, example_function_domain, Tool
 from src.utils import filter_column_not_none
@@ -90,4 +92,49 @@ def unwrap(dataset):
     dataset = dataset.rename_column("input", "domain")
     dataset = dataset.rename_column("generations", "function")
     dataset = filter_column_not_none(dataset, "function")
+    return dataset
+
+
+### DISTRACTORS ###
+
+
+def distract(
+    dataset: Dataset,
+    max_distractors: int = 2,
+    max_inputs: int = 10,
+):
+    """Retrieve function distractions from the dataset.
+    Args:
+        dataset: The dataset of function calls
+        num_distractions: The number of distractions to generate for each function call.
+        max_input: The maximum number of domains to generate functions for.
+    """
+    # make a lookup dataframe of function domains to functions
+    df = dataset.to_pandas().sample(frac=1)[:max_inputs]
+    df = df.drop_duplicates(subset=["function"])
+    domain_function_lookup = df.groupby("domain").function.apply(list).to_dict()
+
+    # iterate through the dataset and retieve the function for each domain
+    for idx, row in tqdm(df.iterrows()):
+        try:
+            function = json.loads(row["function"])
+            function_name = function["function"]["name"]
+            available_functions = []
+            for func in domain_function_lookup[row.domain]:
+                try:
+                    function = json.loads(func)
+                    if function["function"]["name"] != function_name:
+                        available_functions.append(func)
+                except json.JSONDecodeError:
+                    continue
+        except Exception:  # (json.JSONDecodeError, KeyError)
+            continue
+        # TODO: we should get the least similar functions to the function for the domain
+        # append the distractions to a distractors collumn in the dataset
+        for num_distractors in range(1, max_distractors + 1):
+            for distractors in combinations(available_functions, num_distractors):
+                df.at[idx, "distractors"] = json.dumps(list(distractors))
+                df.at[idx, "num_distractors"] = num_distractors
+    df = df.loc[:, ~df.columns.str.contains("_index_")]
+    dataset = Dataset.from_pandas(df)
     return dataset

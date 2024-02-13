@@ -1,5 +1,7 @@
+import json
+from dataclasses import field
 from textwrap import dedent
-from typing import Any
+from typing import ClassVar, Any
 
 from distilabel.dataset import Dataset
 from distilabel.llm import OpenAILLM
@@ -10,54 +12,33 @@ from dotenv import load_dotenv
 
 load_dotenv("../.env")
 
+template_path = "/home/ben/code/distilabel-workbench/scripts/function_calling_dataset/templates/functionfeedback.jinja2"
+
 
 class FunctionFeedbackTask(UltraFeedbackTask):
-    @property
-    def output_args_names(self):
-        return ["rating", "feedback"]
+
+    __jinja2_template__: ClassVar[str] = template_path
+
 
     @property
     def input_args_names(self):
-        return ["function", "instruction", "function_call"]
+        return ["function", "instruction", "generations"]
 
     def generate_prompt(
-        self, function: str, instruction: str, function_call: str, **_: Any
+        self, function: str, instruction: str, generations: list[str], **_: Any
     ) -> Prompt:
-        input = f"{self.task_description}\n\n"
-        input += f"Function: {function}\n\n"
-        input += f"Instruction: {instruction}\n\n"
-        input += "Ratings: 1-3\n\n"
-        for rating in self.ratings:
-            input += f"\n{rating['value']}: {rating['description']}"
-        input += f"\n\nResponse: {function_call}"
+        """Generates a prompts."""
+        render_kwargs = {
+            "task_description": self.task_description,
+            "ratings": self.ratings,
+            "input": instruction,
+            "responses": generations,
+            "function": function,
+        }
         return Prompt(
             system_prompt=self.system_prompt,
-            formatted_prompt=input,
+            formatted_prompt=self.template.render(**render_kwargs),
         )
-
-    def parse_output(self, output: str) -> Any:
-        feedback_rating = output.split(": ")
-        try:
-            rating, feedback = feedback_rating
-        except ValueError:
-            if isinstance(feedback_rating, list):
-                feedback_rating = feedback_rating[0]
-            feedback_rating = feedback_rating.strip()
-            rating = feedback_rating if feedback_rating.isnumeric() else 0
-            feedback = "No feedback"
-        except Exception as e:
-            print(e)
-            rating = 0
-            feedback = "No feedback: Could not parse output."
-        try:
-            rating = int(float(rating))
-        except ValueError:
-            pass
-        output = {
-            "feedback": feedback,
-            "rating": rating,
-        }
-        return output
 
 
 def generate(
@@ -67,15 +48,17 @@ def generate(
     checkpoint_strategy=None,
     max_inputs: int = None,
 ) -> "CustomDataset":
-    ultrafeedback_task = FunctionFeedbackTask(
-        system_prompt="Your role is to evaluate text quality based on given criteria",
+    task = FunctionFeedbackTask(
+        system_prompt="Your role is to evaluate function calling ability based on given criteria",
         task_description=dedent(
             """
-            # JSON Schema Validity Assessment
-            Evaluate the model's json schema based on various criteria:
-            1. **Correctness**: Does the output provide accurate and relevant examples within the JSON fields?
-            2. **Instruction Following**: Does the JSON align with given instructions and the user's intent?
-            3. **Completeness**: Does the JSON schema represent the instruction fully?
+            # Personal Assistant Function Calling Feedback
+            Evaluate the model's function calling based on various criteria:
+            1. **Correctness**: Does the output provide accurate a relevant function call based on the schema?
+            2. **Instruction Following**: Does the function follow the instruction?
+            3. **Completeness**: Does the function call supply all relevant parameters?
+            4. **Clarity**: Is the function call clear and easy to understand?
+            5. **Relevance**: If the function is not relevant to the instruction, the function call should be a null value. 
 
             **Scoring**: Rate outputs 1 to 3 based on the overall quality, considering all aspects:
             """
@@ -83,22 +66,22 @@ def generate(
         ratings=[
             Rating(
                 value=1,
-                description="The JSON schema is incomplete and does not represent the instruction.",
+                description="The function call is incomplete and does not represent the instruction.",
             ),
             Rating(
                 value=2,
-                description="The JSON schema is complete but field, descriptions, and examples should be improved.",
+                description="The function call is complete but field, descriptions, and examples should be improved.",
             ),
             Rating(
                 value=3,
-                description="The JSON schema is complete and represents the instruction fully.",
+                description="The function call is complete and represents the instruction fully.",
             ),
         ],
     )
     labeller = OpenAILLM(
-        task=ultrafeedback_task,
-        max_new_tokens=2048,
+        task=task,
         model="gpt-4",
+        max_new_tokens=4096,
     )
     pipeline = Pipeline(labeller=labeller)
     dataset = Dataset.from_list(dataset.to_list()[:max_inputs])
@@ -109,3 +92,9 @@ def generate(
         checkpoint_strategy=checkpoint_strategy,
     )
     return feedback_dataset
+
+
+def drop_columns(dataset: "Dataset") -> "Dataset":
+    dataset = dataset.rename_column("rating", "_rating")
+    dataset = dataset.rename_column("feedback", "_feedback")
+    return dataset
