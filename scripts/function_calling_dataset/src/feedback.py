@@ -1,7 +1,8 @@
-import json
 from dataclasses import field
 from textwrap import dedent
 from typing import ClassVar, Any
+
+from pandas import DataFrame
 
 from distilabel.dataset import Dataset
 from distilabel.llm import OpenAILLM
@@ -19,19 +20,18 @@ class FunctionFeedbackTask(UltraFeedbackTask):
 
     __jinja2_template__: ClassVar[str] = template_path
 
-
     @property
     def input_args_names(self):
-        return ["function", "instruction", "generations"]
+        return ["function", "instructions", "generations"]
 
     def generate_prompt(
-        self, function: str, instruction: str, generations: list[str], **_: Any
+        self, function: str, instructions: str, generations: list[str], **_: Any
     ) -> Prompt:
         """Generates a prompts."""
         render_kwargs = {
             "task_description": self.task_description,
             "ratings": self.ratings,
-            "input": instruction,
+            "instructions": instructions,
             "responses": generations,
             "function": function,
         }
@@ -47,6 +47,7 @@ def generate(
     num_generations: int = 2,
     checkpoint_strategy=None,
     max_inputs: int = None,
+    max_row_inputs: int = 2,
 ) -> "CustomDataset":
     task = FunctionFeedbackTask(
         system_prompt="Your role is to evaluate function calling ability based on given criteria",
@@ -85,6 +86,7 @@ def generate(
     )
     pipeline = Pipeline(labeller=labeller)
     dataset = Dataset.from_list(dataset.to_list()[:max_inputs])
+    dataset = limit_row_input(dataset, max_row_inputs)
     feedback_dataset = pipeline.generate(
         dataset=dataset,
         num_generations=num_generations,
@@ -97,4 +99,32 @@ def generate(
 def drop_columns(dataset: "Dataset") -> "Dataset":
     dataset = dataset.rename_column("rating", "_rating")
     dataset = dataset.rename_column("feedback", "_feedback")
+    return dataset
+
+
+def limit_row_input(dataset: Dataset, max_inputs: int) -> Dataset:
+    df = dataset.to_pandas()
+    rows = []
+    max_inputs = 2
+    for _, row in df.iterrows():
+        _limited_rows = []
+        for generations in row.generations:
+            _limited_generations = []
+            _limited_instructions = []
+            for generation, instruction in zip(generations, row.instructions):
+                _limited_generations.append(generation)
+                _limited_instructions.append(instruction)
+                if (
+                    len(_limited_generations) >= max_inputs
+                    or len(_limited_instructions) >= max_inputs
+                ):
+                    row = row.copy()
+                    row["instructions"] = _limited_instructions
+                    row["generations"] = [_limited_generations]
+                    _limited_rows.append(row)
+                    _limited_generations = []
+                    _limited_instructions = []
+        rows.extend(_limited_rows)
+    limited_df = DataFrame(rows)
+    dataset = Dataset.from_pandas(limited_df)
     return dataset
