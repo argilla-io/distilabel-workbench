@@ -34,7 +34,15 @@ feedback_dataset = rg.FeedbackDataset(
 )
 
 
-def build_record(row):
+def build_record(
+    instruction: str,
+    function_call: str,
+    function: str,
+    domain: str,
+    feedback: str = "No feedback provided",
+    rating: int = 0,
+    distractors: str = None,
+):
 
     def format_json(json_str):
         try:
@@ -61,29 +69,25 @@ def build_record(row):
     def format_markdown(json_str):
         return f"```json\n{json_str}\n```"  # Wrap the pretty-printed string in Markdown code block
 
-    function = format_markdown(format_json(row["function"]))
-    function_call = format_markdown(format_json(row["function_call"]))
-    if "distractors" in row and row["distractors"] is not None:
-        distractors = format_markdown(format_distractions(row["distractors"]))
+    function = format_markdown(format_json(function))
+    function_call = format_markdown(format_json(function_call))
+    if distractors is not None:
+        distractors = format_markdown(format_distractions(distractors))
     else:
         distractors = ""
     try:
-        rating = int(row["rating"]) + 1
+        rating = int(float(rating)) + 1
     except:
         rating = 1
-    try:
-        feedback = row["feedback"]
-    except:
-        feedback = "No feedback provided"
     record = rg.FeedbackRecord(
         fields={
-            "instruction": row["instruction"],
+            "instruction": instruction,
             "function": function,
             "function_call": function_call,
             "distractors": distractors,
         },
         metadata={
-            "domain": str(row["domain"]),
+            "domain": str(domain),
             "rating": rating,
         },
     )
@@ -97,8 +101,29 @@ def build_record(row):
 def push_to_argilla(
     dataset: Dataset, name: str = str(uuid.uuid4()), workspace: str = "admin"
 ):
-
-    feedback_records = [build_record(row) for _, row in dataset.to_pandas().iterrows()]
+    feedback_records = []
+    for _, row in dataset.to_pandas().iterrows():
+        for generations in row["generations"]:
+            ratings = (
+                row.rating if row.rating is not None else [0] * len(row.instructions)
+            )
+            rationales = (
+                row.rationale
+                if row.rationale is not None
+                else ["No feedback provided"] * len(row.instructions)
+            )
+            for instruction, generation, rationale, rating in zip(
+                row.instructions, generations, rationales, ratings
+            ):
+                record = build_record(
+                    instruction=instruction,
+                    function_call=generation,
+                    function=row["function"],
+                    domain=row["domain"],
+                    feedback=rationale,
+                    rating=rating,
+                )
+                feedback_records.append(record)
     feedback_dataset.add_records(feedback_records)
     try:
         remote_dataset = rg.FeedbackDataset.from_argilla(name=name, workspace=workspace)
