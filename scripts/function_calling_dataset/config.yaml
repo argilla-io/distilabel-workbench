@@ -1,10 +1,10 @@
 name: fml-generation
-save_frequency: 150
+save_frequency:   
 data:
   input:
-    instructions: data/dataset-6e09efb3-6f77-4422-949c-0c2b047cd17a/2024-02-09-15-31-49/checkpoints/instructions
+    feedback: data/fml-generation/2024-02-14-10-15-15/checkpoints/feedback 
   output:
-    argilla: dataset-6e09efb3-6f77-4422-949c-0c2b047cd17a
+    argilla: fml-generation
 generation:
   functions:
     max_inputs: 20
@@ -17,20 +17,19 @@ generation:
     num_generations: 2
     batch_size: 10
   feedback:
+    num_generations: 1
+    batch_size: 3
+expansion:
+  non_calls:
+    max_inputs: 2
+    num_generations: 2
+    batch_size: 5
+  distractors:
+    max_distractors: 3
+    max_inputs: 50
+  feedback:
     num_generations: 2
     batch_size: 10
-    max_inputs: 20
-expansion:
-  # non_calls:
-  #   max_inputs: 2
-  #   num_generations: 2
-  #   batch_size: 5
-  # distractors:
-  #   max_distractors: 3
-  #   max_inputs: 50
-  # feedback:
-  #   num_generations: 2
-  #   batch_size: 10
 
 
   
