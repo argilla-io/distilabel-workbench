@@ -86,7 +86,7 @@ def generate(
     )
     pipeline = Pipeline(labeller=labeller)
     dataset = Dataset.from_list(dataset.to_list()[:max_inputs])
-    dataset = limit_row_input(dataset, max_row_inputs)
+    # dataset = limit_row_input(dataset, max_row_inputs)
     feedback_dataset = pipeline.generate(
         dataset=dataset,
         num_generations=num_generations,
@@ -102,11 +102,11 @@ def drop_columns(dataset: "Dataset") -> "Dataset":
     return dataset
 
 
-def limit_row_input(dataset: Dataset, max_inputs: int) -> Dataset:
+def limit_row_input(dataset: Dataset, max_inputs: int = 2) -> Dataset:
     df = dataset.to_pandas()
     rows = []
-    max_inputs = 2
-    for _, row in df.iterrows():
+    for idx in df.index:
+        row = df.loc[idx]
         _limited_rows = []
         for generations in row.generations:
             _limited_generations = []

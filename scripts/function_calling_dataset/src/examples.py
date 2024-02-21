@@ -1,3 +1,5 @@
+from random import shuffle
+
 from typing import ClassVar, Dict, List
 
 from pydantic import BaseModel
@@ -104,6 +106,8 @@ example_function_domain = [
     "Functions for data visualization",
     "Functions for data analysis",
 ]
+# randomly ordered list of example function domains
+shuffle(example_function_domain)
 
 
 ####################

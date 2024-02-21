@@ -9,8 +9,6 @@ import argilla as rg
 from distilabel.dataset import Dataset
 from dotenv import load_dotenv
 
-from scripts.function_calling_dataset.src import feedback
-
 load_dotenv()
 
 rg.init(
@@ -142,6 +140,7 @@ def push_to_argilla(
 def pull_from_argilla(name: str, workspace: str = "admin"):
     feedback_dataset = rg.FeedbackDataset.from_argilla(name=name, workspace=workspace)
     local_dataset = feedback_dataset.pull()
+    Dataset.from_argilla(local_dataset)
     raise NotImplementedError("pull_from_argilla not implemented")
 
 

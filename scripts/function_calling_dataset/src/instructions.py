@@ -108,9 +108,9 @@ def unwrap_expansions(dataset, call: bool = False):
     """Wrangle the dataset for the expansion phase"""
     df = dataset.to_pandas()
     df["call"] = call
-    df = df.drop(columns=["instruction"])
+    df = df.drop(columns=["instructions"])
     df = df.rename(columns={"input": "function"})
-    df = df.explode("instructions").explode("instructions")
+    df = df.explode("instructions")
     df = df.rename(columns={"instructions": "input"})
     # drop any column with _index_ in the name
     df = df.loc[:, ~df.columns.str.contains("_index_")]

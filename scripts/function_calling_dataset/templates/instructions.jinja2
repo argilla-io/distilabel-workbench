@@ -1,0 +1,16 @@
+## Format
+### Input
+{% for index in range(inputs|length) %}
+Instruction {{index+1}}: [Specify task goal and restrictions]
+{%- endfor %}
+### Output
+{% for index in range(inputs|length) %}
+[Rationale for the rating in short sentences]
+{%- endfor %}
+---
+## Results
+### Inputs
+{% for index in range(inputs|length) %}
+Instruction {{ index + 1 }}: {{ inputs[index] }}
+{% endfor %}
+### Output 

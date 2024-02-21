@@ -60,6 +60,22 @@ class FunctionResponseGeneratorTask(TextGenerationTask):
         )
 
 
+class TextGenerationTask(TextGenerationTask):
+
+    __jinja2_template__ = "/home/ben/code/distilabel-workbench/scripts/function_calling_dataset/templates/instructions.jinja2"
+
+    def generate_prompt(self, input: str, **_: Any) -> Prompt:
+        system_prompt = self.system_prompt
+        if self.principles_distribution is not None:
+            principle = self._get_principle()
+            system_prompt += " " + principle
+        render_kwargs = {"input": input}
+        return Prompt(
+            system_prompt=system_prompt,
+            formatted_prompt=self.template.render(**render_kwargs),
+        )
+
+
 call_task = FunctionResponseGeneratorTask(
     system_prompt=(
         "You are an AI assistant that that performs tasks using functions."
@@ -121,7 +137,7 @@ def unwrap_expansions(dataset, call: bool = False):
         lambda response: [json.dumps({"text": r}) for r in response]
     )
     df["call"] = call
-    df = df.rename(columns={"input": "instruction"})
+    df = df.rename(columns={"input": "instructions"})
     dataset = Dataset.from_pandas(df)
     dataset = filter_column_not_none(dataset, "generations")
     return dataset

@@ -1,5 +1,8 @@
 from rich import get_console
 
+from datasets import load_dataset
+
+from src import benchmark
 from src import feedback
 from src import functions
 from src import instructions
@@ -217,3 +220,39 @@ def pipeline_expansions_dataset(run_config: dict):
         )
 
     return function_calling_dataset
+
+
+def pipeline_benchmark_models(run_config: dict):
+    """A pipeline to benchmark models on a function calling dataset.
+
+    Args:
+        function_calling_dataset: The function calling dataset to benchmark
+        run_config: The configuration for the benchmarking
+
+    Returns:
+        benchmark_results: The results of the benchmarking
+    """
+
+    # Load the configuration file
+    dataset_paths = run_config.get("data", {}).get("input", {})
+    benchmark_config = run_config.get("benchmark", {})
+    repo_id = dataset_paths.get("repo_id")
+    dataset = load_dataset(repo_id)
+    generate_config = benchmark_config.get("generate", {})
+    dataset = benchmark.generate(
+        dataset=dataset,
+        checkpoint_strategy=utils.setup_checkpoint_strategy(
+            run_config, "benchmark_generate"
+        ),
+        **generate_config,
+    )
+
+    feedback_config = benchmark_config.get("feedback", {})
+    feedback_dataset = feedback.generate(
+        dataset=dataset,
+        checkpoint_strategy=utils.setup_checkpoint_strategy(
+            run_config, "benchmark_feedback"
+        ),
+        **feedback_config,
+    )
+    return feedback_dataset
