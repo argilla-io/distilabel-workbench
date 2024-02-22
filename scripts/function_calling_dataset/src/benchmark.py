@@ -62,8 +62,8 @@ def validate(results, models):
                         }
                     )
     df = pd.DataFrame(validated_rows)
-    df["generation"] = df["generation"].apply(lambda x: x.model_dump_json())
     df = df.loc[df["is_function"] == True].loc[df["is_json"] == True]
+    df["generation"] = df["generation"].apply(lambda x: x.model_dump_json())
     return Dataset.from_pandas(df)
 
 
