@@ -22,7 +22,7 @@ class FunctionResponseGeneratorTask(TextGenerationTask):
     example_functions = example_tools
     example_function_responses = example_function_responses
 
-    __jinja2_template__ = "/home/ben/code/distilabel-workbench/scripts/function_calling_dataset/templates/functionresponses.jinja2"
+    __jinja2_template__ = "templates/functionresponses.jinja2"
 
     @property
     def input_args_names(self):

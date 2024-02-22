@@ -11,9 +11,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-rg.init(
-    api_key=os.environ.get("ARGILLA_API_KEY"), api_url=os.environ.get("ARGILLA_API_URL")
-)
+try:
+    rg.init(
+        api_key=os.environ.get("ARGILLA_API_KEY"), api_url=os.environ.get("ARGILLA_API_URL")
+    )
+except Exception as e:
+    print("Cannot initialize argilla")
+    print(e)
 
 feedback_dataset = rg.FeedbackDataset(
     fields=[

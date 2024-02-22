@@ -13,12 +13,10 @@ from dotenv import load_dotenv
 
 load_dotenv("../.env")
 
-template_path = "/home/ben/code/distilabel-workbench/scripts/function_calling_dataset/templates/functionfeedback.jinja2"
-
 
 class FunctionFeedbackTask(UltraFeedbackTask):
 
-    __jinja2_template__: ClassVar[str] = template_path
+    __jinja2_template__: ClassVar[str] = "templates/functionfeedback.jinja2"
 
     @property
     def input_args_names(self):
