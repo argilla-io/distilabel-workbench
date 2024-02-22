@@ -57,10 +57,10 @@ def main(
 
     ### PUSH TO HUB ###
 
-    push_to_argilla(
-        dataset=function_calling_dataset,
-        name=dataset_name,
-    )
+    # push_to_argilla(
+    #     dataset=function_calling_dataset,
+    #     name=dataset_name,
+    # )
 
 
 if __name__ == "__main__":

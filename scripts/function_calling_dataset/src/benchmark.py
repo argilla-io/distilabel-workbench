@@ -1,13 +1,59 @@
 import json
 
+import pandas as pd
 from distilabel.dataset import Dataset
 from distilabel.pipeline import Pipeline
 from distilabel.llm import JSONOpenAILLM
-import pandas as pd
+from distilabel.llm import vLLM
+from vllm import LLM
 
 from src.examples import FunctionCallResponseArray
 from src.responses import call_task
 
+# mixtral = vLLM(
+#     model=LLM(model="mistralai/Mixtral-8x7B-Instruct-v0.1"),
+#     task=call_task,
+#     max_new_tokens=4096,
+#     temperature=1.0,
+#     prompt_format="notus",
+# )
+
+mistral = vLLM(
+    model=LLM(model="mistralai/Mistral-7B-Instruct-v0.1"),
+    task=call_task,
+    max_new_tokens=4096,
+    temperature=1.0,
+    prompt_format="notus",
+)
+
+# notus = vLLM(
+#     model=LLM(model="argilla/notus-7b-v1"),
+#     task=call_task,
+#     max_new_tokens=4096,
+#     temperature=1.0,
+#     prompt_format="notus",
+# )
+
+# gpt_3 = JSONOpenAILLM(
+#     task=call_task,
+#     model="gpt-3.5-turbo-1106",
+#     num_threads=1,
+#     max_new_tokens=4096,
+# )
+# gpt_4 = JSONOpenAILLM(
+#     task=call_task,
+#     model="gpt-4-1106-preview",
+#     num_threads=1,
+#     max_new_tokens=4096,
+# )
+
+models = [
+    # ("gpt-3.5-turbo-1106", gpt_3),
+    # ("gpt-4-1106-preview", gpt_4),
+    # ("mixtral-8x7b-instruct-v0.1", mixtral),
+    # ("notus-7b-v1", notus),
+    ("mistral-7b-instruct-v0.1", mistral),
+]
 
 def wrangle_dataset(dataset, max_inputs=None, max_row_inputs=3):
     df = dataset.to_pandas()
@@ -24,8 +70,7 @@ def wrangle_dataset(dataset, max_inputs=None, max_row_inputs=3):
                 "generations": [generations],
             }
         )
-    inputs = pd.DataFrame(rows[:max_inputs]).to_dict(orient="records")
-    return Dataset.from_list(inputs)
+    return Dataset.from_list(rows[:max_inputs])
 
 
 def validate(results, models):
@@ -75,23 +120,6 @@ def generate(
     max_inputs: int = None,
 ):
     dataset = wrangle_dataset(dataset["train"], max_inputs=max_inputs)
-    gpt_3 = JSONOpenAILLM(
-        task=call_task,
-        model="gpt-3.5-turbo-1106",
-        num_threads=1,
-        max_new_tokens=4096,
-    )
-    gpt_4 = JSONOpenAILLM(
-        task=call_task,
-        model="gpt-4-1106-preview",
-        num_threads=1,
-        max_new_tokens=4096,
-    )
-
-    models = [
-        ("gpt-3.5-turbo-1106", gpt_3),
-        ("gpt-4-1106-preview", gpt_4),
-    ]
     all_results = []
     for model_name, llm in models:
         print(f"Generating for {model_name}")
@@ -105,4 +133,4 @@ def generate(
         all_results.append(results)
     dataset = validate(all_results, models)
     dataset = wrangle_dataset(dataset, max_row_inputs=3)
-    return all_results
+    return dataset
