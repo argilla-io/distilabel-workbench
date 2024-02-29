@@ -13,7 +13,7 @@ dataset = (
     .rename_column("chosen", "response")
 )
 dataset = dataset.select_columns(["prompt", "response"])
-dataset = dataset.select(range(10))
+dataset = dataset.select(range(1))
 OPENAI_API_TOKEN = os.getenv("OPENAI_API_TOKEN")
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 NEW_DATASET_NAME = "argilla/intel-orca-dpo-pairs-helm-instruct"
@@ -45,6 +45,6 @@ for criterion_key in criterion:
         batch_size=16,
         # checkpoint_strategy=checkpoint_strategy,
     )
+    dataset = dataset.rename_column("generations", f"generations_{criterion_key}")
     print(dataset)
-    dataset.rename_column("generations", f"generations_{criterion_key}")
 dataset.push_to_hub(NEW_DATASET_NAME, token=HF_API_TOKEN, use_auth_token=True)
