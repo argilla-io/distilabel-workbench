@@ -27,7 +27,7 @@ checkpoint_strategy = DatasetCheckpoint(
     },
     save_frequency=500,
 )
-
+skip_dry_run = True
 for criterion_key in criterion:
     pipe = Pipeline(
         labeller=OpenAILLM(
@@ -43,8 +43,10 @@ for criterion_key in criterion:
         dataset,
         num_generations=1,
         batch_size=16,
+        skip_dry_run=skip_dry_run,
         # checkpoint_strategy=checkpoint_strategy,
     )
     dataset = dataset.rename_column("generations", f"generations_{criterion_key}")
+    skip_dry_run = False
     print(dataset)
-dataset.push_to_hub(NEW_DATASET_NAME, token=HF_API_TOKEN, use_auth_token=True)
+dataset.push_to_hub(NEW_DATASET_NAME, token=HF_API_TOKEN)
