@@ -2,32 +2,30 @@
 $ python dibt/synthetic_evaluator.py
 """
 
-import os
 from dataclasses import dataclass
 from typing import List, TypedDict
 
 import regex as re
-from distilabel import Prompt, TextGenerationTask
+from criterion import Rating, criterion
+from distilabel.tasks import Prompt, TextGenerationTask
 
-from .criterion import Rating, criterion
 
-
-class PromptEvaluatorOutput(TypedDict):
+class HelmInstructOutput(TypedDict):
     """A `TypedDict` representing the output of an `PromptEvaluationTask`."""
 
     rating: float
     rationale: str
 
 
-prompt_evaluator = """{task_description}
+helm_instruct_template = """{task_description}
 
 Instruction:
-{instruction}
+{prompt}
 
 Response:
 {response}
 
-{criterion_name}
+{criterion_question}
 Options:
 {criterion_options}
 
@@ -46,14 +44,20 @@ class HelmInstructTask(TextGenerationTask):
     to a distilabel task.
     """
 
-    criterion_question: str
-    criterion_options: List[Rating]
+    criterion: str = None
     task_description: str = (
         "The following is an instruction written by a human, and a response to the instruction written by an AI model. Please answer the following questions about the AI model’s response."
     )
     system_prompt: str = (
         "You are an AI response evaluator focused on rating prompts that are clear, interesting and complex for fine-tuning open source LLMs."
     )
+    criterion_question: str = None
+    criterion_options: List[Rating] = None
+
+    @property
+    def input_args_names(self) -> List[str]:
+        """Returns the input args names for the task."""
+        return ["prompt", "response"]
 
     def generate_prompt(self, prompt: str, response: str) -> Prompt:
         render_kwargs = {
@@ -65,7 +69,7 @@ class HelmInstructTask(TextGenerationTask):
         }
         return Prompt(
             system_prompt=self.system_prompt,
-            formatted_prompt=prompt_evaluator.format(**render_kwargs),
+            formatted_prompt=helm_instruct_template.format(**render_kwargs),
         )
 
     @classmethod
@@ -93,55 +97,12 @@ class HelmInstructTask(TextGenerationTask):
         self.criterion_options = criterion[self.criterion]["ratings"]
         self.task_description = criterion[self.criterion]["question"]
 
-    def parse_output(self, output: str) -> PromptEvaluatorOutput:  # type: ignore
+    def parse_output(self, output: str) -> HelmInstructOutput:  # type: ignore
         """Parses the output of the model into the desired format."""
         pattern = r"<rating>(.*?)</rating>\s*<rationale>(.*?)</rationale>"
         match = re.findall(pattern, output, re.DOTALL)
         if match:
-            return PromptEvaluatorOutput(
+            return HelmInstructOutput(
                 rating=float(match[0][0]),
                 rationale=match[0][1].strip(),
             )
-
-
-if __name__ == "__main__":
-    from datasets import load_dataset
-    from distilabel.dataset import DatasetCheckpoint
-    from distilabel.llm import OpenAILLM
-    from distilabel.pipeline import Pipeline
-
-    dataset = load_dataset("DIBT/10k_prompts_ranked", split="train").rename_column(
-        "prompt", "input"
-    )
-
-    OPENAI_API_TOKEN = os.getenv("OPENAI_API_TOKEN")
-    HF_API_TOKEN = os.getenv("HF_API_TOKEN")
-    NEW_DATASET_NAME = "argilla/10k_prompts_ranked_synthetic"
-
-    checkpoint_strategy = DatasetCheckpoint(
-        strategy="hf-hub",
-        extra_kwargs={
-            "repo_id": NEW_DATASET_NAME,
-            "token": HF_API_TOKEN,
-            "private": True,
-            "split": "train",
-        },
-        save_frequency=500,
-    )
-
-    pipe = Pipeline(
-        generator=OpenAILLM(
-            model="gpt-4-1106-preview",  # gpt-4 turbo
-            task=PromptEvaluationTask.for_overall_quality(),
-            max_new_tokens=512,
-            num_threads=8,
-            api_key=OPENAI_API_TOKEN,
-            temperature=0.3,
-        )
-    )
-    new_ds = pipe.generate(
-        dataset,
-        num_generations=1,
-        batch_size=16,
-        checkpoint_strategy=checkpoint_strategy,
-    )
