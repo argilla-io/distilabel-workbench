@@ -2,37 +2,55 @@
 
 The dataset is generated in three steps: sft, dpo, labelling.
 The first and last steps were run locally, the second one
-was run on runpod with 3 A40 GPUs.
+was run on runpod with 6 A100 GPUs of 80Gb.
 
 pip install distilabel vllm argilla openai
 
-python oss_instruct_pref.py \
-    --step sft
-    --hf-apikey ...
-    --openai-apikey ...
-    --path-snippets "code_snippets.jsonl"
-    --save-freq 20
+## ---- Problems step 1 ----
+python disticoder/oss_instruct_pref_v2.py \
+    --step problems \
+    --hf-apikey $HF_API_TOKEN \
+    --openai-apikey $OPENAI_API_KEY \
+    --push-to-argilla 0 \
+    --nrows 5100
 
-python oss_instruct_pref.py \
-    --step dpo \
-    --hf-apikey ... \
-    --openai-apikey ... \
-    --path-snippets "code_snippets.jsonl" \
-    --save-freq 20
+## ---- Solutions step 1 ----
 
-python ENV/oss_instruct_pref_vllm.py \
-    --step label \
-    --hf-apikey ...\
-    --openai-apikey ... \
-    --path-snippets "ENV/code_snippets.jsonl" \
-    --save-freq 20 \
-    --labelling-task instruction_following
+python disticoder/oss_instruct_pref_v2.py \
+    --step solutions \
+    --hf-apikey $HF_API_TOKEN \
+    --openai-apikey $OPENAI_API_KEY \
+    --push-to-argilla 0 \
+    --nrows 5100
+
+## ---- Solutions step 2 ----
+
+python disticoder/oss_instruct_pref_v2.py \
+    --step solutions-pool \
+    --hf-apikey $HF_API_TOKEN \
+    --openai-apikey $OPENAI_API_KEY \
+    --push-to-argilla 0 \
+    --nrows 5100
+
+## ---- Labelling step 1 ----
+TODO: Here we should merge the previous datasets if not found in HF.
+
+python disticoder/oss_instruct_pref_v2.py \
+    --step labelling \
+    --hf-apikey $HF_API_TOKEN \
+    --openai-apikey $OPENAI_API_KEY \
+    --labelling-task code_quality \
+    --push-to-argilla 0 \
+    --nrows 5100 \
+    --save-freq 100
+
 
 If running on runpod, be sure to add extra space for the container volume and disk
 for the models to download properly (200Gb are enough).
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -60,35 +78,32 @@ from dataclasses import dataclass
 from distilabel.llm import LLM, LLMPool, ProcessLLM
 
 
-here = Path(__file__).parent.resolve()
+def load_dataset_snippets(seed: int = 422, nrows: int = 5100) -> Dataset:
+    ds = load_dataset("ise-uiuc/Magicoder-OSS-Instruct-75K", split="train")
+    if nrows == -1:
+        nrows = len(ds)
+    df_sampled = ds.to_pandas().set_index("lang").sample(
+        n=nrows,
+        random_state=seed
+    ).reset_index()
+    ds_sampled = Dataset.from_pandas(df_sampled, preserve_index=False)
+    return ds_sampled.select_columns(["seed"]).rename_column("seed", "input")
 
-def load_snippets(path: Path = Path("./code_snippets.jsonl")) -> Dataset:
-    ds = load_dataset("json", data_files=path, split="train")
-    ds = ds.rename_column("snippet", "input")
-    return ds
 
-
-oss_instruct_prompt = """Please gain inspiration from the following random code snippet to create a high-quality programming problem. Present your output in two distinct sections:
-[Problem Description] and [Solution].
+oss_instruct_prompt = """Please gain inspiration from the following random code snippet to create a high-quality programming problem.
 
 Code snippet for inspiration:
 ```
 {code}
 ```
 
-Guidelines for each section:
-1. [Problem Description]: This should be **completely self-contained**, providing
-all the contextual information one needs to understand and solve the problem.
-Assume common programming knowledge, but ensure that any specific context,
-variables, or code snippets pertinent to this problem are explicitly included.
-2. [Solution]: Offer a comprehensive, **correct** solution that accurately
-addresses the [Problem Description] you provided.
-"""
+Guidelines for the problem:
+The problem should be **completely self-contained**, providing all the contextual information one needs to understand and solve the problem. The problem must be written as a natural question, avoid titles or anything that would make it artificial. Assume common programming knowledge, but ensure that any specific context, variables, or code snippets pertinent to this problem are **explicitly included*. **Don't reference any provided code snippet** if you are not including it in the problem description."""
 
 
 @dataclass
-class OSSInstruct(TextGenerationTask):
-    system_prompt: str = "You are exceptionally skilled at crafting high-quality programming problems and offering precise solutions."
+class OSSInstructProblem(TextGenerationTask):
+    system_prompt: str = "You are exceptionally skilled at crafting high-quality programming problems."
 
     def generate_prompt(self, input: str) -> Prompt:
         return Prompt(
@@ -97,32 +112,47 @@ class OSSInstruct(TextGenerationTask):
           )
 
     def parse_output(self, output: str) -> List[Dict[str, str]]:
-        problem, solution = output.split("[Solution]")
-        return {
-            "problem": problem.replace("[Problem Description]", "").strip(),
-            "solution": solution.strip()
-        }
+        return {"problem": output}
 
 
-SYSTEM_PROMPT_MAGICODER = "You are an exceptionally intelligent coding assistant that consistently delivers accurate and reliable responses to user instructions."
+oss_solution_prompt = """Offer a comprehensive, **correct** solution that accurately addresses the following problem:
+{problem}"""
+
+
+@dataclass
+class OSSSolution(TextGenerationTask):
+    system_prompt: str = "You are exceptionally skilled at code generation and problem solving."
+
+    def generate_prompt(self, input: str) -> Prompt:
+        return Prompt(
+            system_prompt=self.system_prompt,
+            formatted_prompt=oss_solution_prompt.format(problem=input)
+          )
+
+    def parse_output(self, output: str) -> List[Dict[str, str]]:
+        return {"solution": output}
+
 
 MAGICODER_PROMPT = """
-
 @@ Instruction
 {instruction}
 
 @@ Response
 """
 
+
 @dataclass
 class MagicoderTask(TextGenerationTask):
-    system_prompt: str = SYSTEM_PROMPT_MAGICODER
+    system_prompt: str = OSSSolution().system_prompt
 
     def generate_prompt(self, input: str) -> Prompt:
         return Prompt(
             system_prompt=self.system_prompt,
-            formatted_prompt=MAGICODER_PROMPT.format(instruction=input)
+            formatted_prompt=MAGICODER_PROMPT.format(instruction=oss_solution_prompt.format(problem=input))
           )
+
+    def parse_output(self, output: str) -> List[Dict[str, str]]:
+        return {"solution": output}
 
 
 def load_magicoder(task: Task, cuda_visible_devices: str = "0") -> LLM:
@@ -131,41 +161,32 @@ def load_magicoder(task: Task, cuda_visible_devices: str = "0") -> LLM:
     from vllm import LLM
     os.environ["CUDA_VISIBLE_DEVICES"] = cuda_visible_devices
     return vLLM(
-        vllm=LLM(
+        model=LLM(
             model="ise-uiuc/Magicoder-S-DS-6.7B",
             trust_remote_code=True,
-            tensor_parallel_size=1,
+            tensor_parallel_size=len(cuda_visible_devices.split(",")),
             max_model_len=16384
         ),
         task=task,
         max_new_tokens=1024,
+        top_p=0.95,
         temperature=1,
     )
 
 
-def load_openai_gpt35(task):
-    return OpenAILLM(
-        model="gpt-3.5-turbo",
-        task=task,
-        openai_api_key=os.getenv("OPENAI_API_KEY"),
-        max_new_tokens=1024,
-        num_threads=4,
-        temperature=1
-    )
-
-
-def load_notus(task: Task) -> LLM:
+def load_notus(task: Task, cuda_visible_devices: str = "1") -> LLM:
     import os
 
     from distilabel.llm import vLLM
     from vllm import LLM
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = cuda_visible_devices
 
     return vLLM(
-        vllm=LLM(
+        model=LLM(
             model="argilla/notus-7b-v1",
-            trust_remote_code=True
+            trust_remote_code=True,
+            tensor_parallel_size=len(cuda_visible_devices.split(",")),
         ),
         task=task,
         max_new_tokens=1024,
@@ -175,7 +196,6 @@ def load_notus(task: Task) -> LLM:
 
 
 WIZARDCODER_PROMPT = """
-
 ### Instruction:
 {instruction}
 
@@ -185,12 +205,15 @@ WIZARDCODER_PROMPT = """
 
 @dataclass
 class WizardCoderTask(TextGenerationTask):
-    system_prompt: str = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
+    system_prompt: str = OSSSolution().system_prompt
     def generate_prompt(self, input: str) -> Prompt:
         return Prompt(
             system_prompt=self.system_prompt,
-            formatted_prompt=WIZARDCODER_PROMPT.format(instruction=input)
+            formatted_prompt=WIZARDCODER_PROMPT.format(instruction=oss_solution_prompt.format(problem=input))
           )
+
+    def parse_output(self, output: str) -> List[Dict[str, str]]:
+        return {"solution": output}
 
 
 def load_wizardcoder(task: Task, cuda_visible_devices: str = "2") -> LLM:
@@ -199,18 +222,15 @@ def load_wizardcoder(task: Task, cuda_visible_devices: str = "2") -> LLM:
     from vllm import LLM
     os.environ["CUDA_VISIBLE_DEVICES"] = cuda_visible_devices
     return vLLM(
-        vllm=LLM(
+        model=LLM(
             model="WizardLM/WizardCoder-15B-V1.0",
-            tensor_parallel_size=1,
+            tensor_parallel_size=len(cuda_visible_devices.split(",")),
             trust_remote_code=True
         ),
         task=task,
         max_new_tokens=1024,
         temperature=1,
     )
-
-
-pool_generation_task = TextGenerationTask(system_prompt=SYSTEM_PROMPT_MAGICODER)
 
 
 if __name__ == "__main__":
@@ -221,137 +241,186 @@ if __name__ == "__main__":
     parser.add_argument("--hf-apikey", type=str, default=None, help="Your HuggingFace API key with **WRITE** permission, otherwise it cannot push to hub")
     parser.add_argument("--nrows", type=int, default=-1, help="Number of rows to sample for the dataset")
     parser.add_argument("--push-to-hub", type=bool, default=True, help="Whether to push the dataset to the HuggingFace Hub")
-    parser.add_argument("--push-to-argilla", type=bool, default=True, help="Whether to push the dataset to the HuggingFace Hub")
+    parser.add_argument("--push-to-argilla", type=int, default=1, help="Whether to push the dataset to the HuggingFace Hub")
     parser.add_argument("--argilla-apikey", type=str, default="admin.apikey")
     parser.add_argument("--argilla-url", type=str, default="https://plaguss-distilabel-oss-preference.hf.space")
     parser.add_argument("--save-labels", type=str, default="labels.csv", help="Path to save the labels to")
     # 1) Create a new variable to allow generating the dataset up to a point.
-    parser.add_argument("--step", type=str, default="labelling", help="Step for the dataset generation. 'sft', 'dpo', 'labelling'")
-    parser.add_argument("--path-snippets", type=str, default="code_snippets.jsonl", help="Path to save the labels to")
-    parser.add_argument("--save-freq", type=int, default=20, help="Frequency to checkpoint the dataset")
+    parser.add_argument("--step", type=str, default="labelling", help="Step for the dataset generation. 'problems', 'solutions', 'solutions-pool', 'labelling'")
+    parser.add_argument("--save-freq", type=int, default=500, help="Frequency to checkpoint the dataset")
     parser.add_argument("--labelling-task", type=str, default="all", help="Task for the labeller: 'all', 'overall_quality', 'instruction_following', 'honesty', 'truthfulness', 'code_quality'")
-    
-    args = vars(parser.parse_args())
+    parser.add_argument("--seed", type=int, default=422, help="Random seed for the dataset snippets")
+
+    args = parser.parse_args()
 
     # Contains the file from where we extract the code snippets.
     # Start doing the logins to avoid possible failures later on.
+    HF_API_TOKEN = args.hf_apikey or os.getenv("HF_API_TOKEN")
+    OPENAI_API_TOKEN = args.openai_apikey or os.getenv("OPENAI_API_KEY")
 
-    if args["push_to_hub"]:
-        login(token=args["hf_apikey"] or os.getenv("HF_API_TOKEN"))
-    if args["push_to_argilla"]:
+    if args.push_to_hub:
+        login(token=HF_API_TOKEN)
+    if args.push_to_argilla:
         print("Logging to argilla")
-        rg.init(api_key=args["argilla_apikey"], api_url=args["argilla_url"])
-
-    pipe_generation = Pipeline(
-        generator=OpenAILLM(
-            model="gpt-3.5-turbo",
-            task=OSSInstruct(),
-            openai_api_key=args["openai_apikey"] or os.getenv("OPENAI_API_KEY"),
-            max_new_tokens=1024,
-            num_threads=4,
-            temperature=1
-        )
-    )
+        rg.init(api_key=args.argilla_apikey, api_url=args.argilla_url)
 
     print("Reading dataset for the snippets:")
-    ds_snippets = load_snippets(path=args["path_snippets"])
+    ds_snippets = load_dataset_snippets(seed=args.seed, nrows=args.nrows)
 
-    num_generations = len(ds_snippets) if args["nrows"] == -1 else args["nrows"]
+    num_generations = len(ds_snippets) if args.nrows == -1 else args.nrows
     print("num_generations", num_generations)
 
-    save_frequency = len(ds_snippets) // args["save_freq"]
+    DATASET_NAME_PROBLEMS = "argilla/oss-instruct-problems-step-1"
+    DATASET_NAME_SOLUTIONS_OPENAI = "argilla/oss-instruct-solutions-step-1"
+    DATASET_NAME_SOLUTIONS_POOL = "argilla/oss-instruct-solutions-step-2"
 
-    dataset_checkpoint_sft = DatasetCheckpoint(path=here / "checkpoint_sft", save_frequency=save_frequency)
-    dataset_checkpoint_dpo = DatasetCheckpoint(path=here / "checkpoint_dpo", save_frequency=save_frequency)
-    print(f"checkpoint paths: {dataset_checkpoint_sft.path} and {dataset_checkpoint_dpo.path}")
-    print(f"Save frequency: every {save_frequency} rows.")
+    dataset_checkpoint_problems = DatasetCheckpoint(
+        strategy="hf-hub",
+        extra_kwargs={
+            "repo_id": DATASET_NAME_PROBLEMS,
+            "token": HF_API_TOKEN,
+            "private": True,
+            "split": "train"
+        },
+        save_frequency=args.save_freq
+    )
+    dataset_checkpoint_solutions_openai = DatasetCheckpoint(
+        strategy="hf-hub",
+        extra_kwargs={
+            "repo_id": DATASET_NAME_SOLUTIONS_OPENAI,
+            "token": HF_API_TOKEN,
+            "private": True,
+            "split": "train"
+        },
+        save_frequency=args.save_freq
+    )
+    dataset_checkpoint_solutions_pool = DatasetCheckpoint(
+        strategy="hf-hub",
+        extra_kwargs={
+            "repo_id": DATASET_NAME_SOLUTIONS_POOL,
+            "token": HF_API_TOKEN,
+            "private": True,
+            "split": "train"
+        },
+        save_frequency=args.save_freq
+    )
 
-    if not dataset_checkpoint_sft.path.is_dir():
-        # Generate initial version of the dataset with the OSSInstruct task
+    print(f"Save frequency: every {args.save_freq} rows.")
+
+    try:
+        print("Dataset exists, load it from the checkpoint")
+        oss_instruct_ds = load_dataset(DATASET_NAME_PROBLEMS, split="train", token=HF_API_TOKEN)
+    except Exception as e:
+        pipe_generation = Pipeline(
+            generator=OpenAILLM(
+                model="gpt-3.5-turbo",
+                task=OSSInstructProblem(),
+                api_key=OPENAI_API_TOKEN,
+                max_new_tokens=1024,
+                num_threads=8,
+                temperature=1
+            )
+        )
         oss_instruct_ds = pipe_generation.generate(
             dataset=ds_snippets,
             num_generations=1,
-            batch_size=8,
-            checkpoint_strategy=dataset_checkpoint_sft,
+            batch_size=16,
+            checkpoint_strategy=dataset_checkpoint_problems,
         )
-    else:
-        print("Load the dataset from the checkpoint")
-        from distilabel.dataset import CustomDataset
-        oss_instruct_ds = CustomDataset.load_from_disk(dataset_checkpoint_sft.path)
 
     # Some renaming of the variables to prepare it for the next generation step
-    oss_instruct_ds = oss_instruct_ds.rename_column("input", "code_snippet")
-    oss_instruct_ds = oss_instruct_ds.rename_column("problem", "input")
-    oss_instruct_ds = oss_instruct_ds.remove_columns("generations")
+    ds_second = (
+        oss_instruct_ds
+        .rename_column("input", "code_snippet")
+        .rename_column("problem", "input")
+        .map(lambda ex: {"input": ex["input"][0]})
+        .remove_columns(["generations", "generation_model"])
+    )
 
-    if args["step"] == "sft":
+    if args.step == "problems":
         print("----" * 5)
-        print("GENERATED OSS INSTRUCT DATASET, EXITING")
+        print("GENERATED OSS INSTRUCT DATASET WITH PROBLEM, EXITING")
         print("----" * 5)
         sys.exit(0)
 
-    # Prepare the dataset extracting the string from the internal list
-    def extract_input(ex):
-        if ex["input"]:
-            ex["input"] = ex["input"][0]
-        return ex
+    if args.step == "solutions":
+        print("Start generation of the solutions dataset")
+        pipe_generation_solutions = Pipeline(
+            generator=OpenAILLM(
+                model="gpt-3.5-turbo",
+                task=OSSSolution(),
+                api_key=OPENAI_API_TOKEN,
+                max_new_tokens=1024,
+                num_threads=4,
+                temperature=1
+            )
+        )
 
-    ds_second = oss_instruct_ds.select_columns(["input"]).map(extract_input)
+        oss_instruct_solutions_step_1 = pipe_generation_solutions.generate(
+            dataset=ds_second,
+            num_generations=1,
+            batch_size=16,
+            checkpoint_strategy=dataset_checkpoint_solutions_openai,
+        )
+        print("----" * 5)
+        print("Generated OSS Instruct dataset with solutions from OpenAI, exiting")
+        print("----" * 5)
+        sys.exit(0)
 
-    # Extra generation step to prepare the dataset for DPO.
-    # oss_instruct_ds_second = pipe_generation_2.generate(
-    if not dataset_checkpoint_dpo.path.is_dir():
+    elif args.step == "solutions-pool":
+        print("Start generation of the solutions dataset from LLM Pool")
         llm_pool = LLMPool(
             [
                 ProcessLLM(task=MagicoderTask(), load_llm_fn=load_magicoder),
                 ProcessLLM(task=WizardCoderTask(), load_llm_fn=load_wizardcoder),
-                ProcessLLM(task=pool_generation_task, load_llm_fn=load_notus),
+                ProcessLLM(task=OSSSolution(), load_llm_fn=load_notus),
             ]
         )
 
         pipe_generation_pool = Pipeline(generator=llm_pool)
 
         print("Start generation of the preference dataset")
-        oss_instruct_ds_second = pipe_generation_pool.generate(
+        oss_instruct_solutions_step_2 = pipe_generation_pool.generate(
             dataset=ds_second,
             num_generations=len(llm_pool.llms),
-            batch_size=20,
-            checkpoint_strategy=dataset_checkpoint_dpo,
+            batch_size=64,
+            checkpoint_strategy=dataset_checkpoint_solutions_pool,
         )
-    else:
-        print("Load the preference dataset from the checkpoint")
-        from distilabel.dataset import CustomDataset
-        oss_instruct_ds_second = CustomDataset.load_from_disk(dataset_checkpoint_dpo.path)
-
-    if args["step"] == "dpo":
         print("----" * 5)
-        print("GENERATED OSS INSTRUCT DATASET FOR DPO, EXITING")
+        print("Generated OSS Instruct dataset with solutions from an LLM Pool, exiting")
         print("----" * 5)
         sys.exit(0)
 
-    generations = []
-    generation_model = []
-    generation_prompt = []
+    # generations = []
+    # generation_model = []
+    # generation_prompt = []
 
-    for i, row in enumerate(oss_instruct_ds):
-        gen_model = oss_instruct_ds_second[i]["generation_model"] + row["generation_model"] 
-        generation_model.append(gen_model)
-        gen = (oss_instruct_ds_second[i]["generations"] or [""] * len(llm_pool.llms)) + (row["solution"] or [""])
-        generations.append(gen)
+    # for i, row in enumerate(oss_instruct_ds):
+    #     gen_model = oss_instruct_ds_second[i]["generation_model"] + row["generation_model"] 
+    #     generation_model.append(gen_model)
+    #     gen = (oss_instruct_ds_second[i]["generations"] or [""] * len(llm_pool.llms)) + (row["solution"] or [""])
+    #     generations.append(gen)
 
-    oss_instruct_ds_second = oss_instruct_ds_second.remove_columns("generations")
-    oss_instruct_ds_second = oss_instruct_ds_second.add_column("generations", generations)
+    # oss_instruct_ds_second = oss_instruct_ds_second.remove_columns("generations")
+    # oss_instruct_ds_second = oss_instruct_ds_second.add_column("generations", generations)
 
-    # Prepare the dataset for the labelling step.
-    ds = Dataset.from_dict(
-        {
-            "lang": oss_instruct_ds["lang"],
-            "input": oss_instruct_ds_second["input"],
-            "generation_model": generation_model,
-            "generations": generations
-        }
+    # # Prepare the dataset for the labelling step.
+    # ds = Dataset.from_dict(
+    #     {
+    #         "lang": oss_instruct_ds["lang"],
+    #         "input": oss_instruct_ds_second["input"],
+    #         "generation_model": generation_model,
+    #         "generations": generations
+    #     }
+    # )
+    # TODO: RELOAD THE MERGED DATASET FROM HF, EXPLAIN HOW IT'S OBTAINED
+    # NOTEBOOK review_disticoder.ipynb
+    ds = load_dataset("argilla/disticoder-dpo-v2-unlabelled", split="train")
+    # Prepare it for the labelling step
+    ds = (
+        ds.rename_column("problem", "input").rename_column("solutions", "generations")
     )
- 
+
     ratings = [
         Rating(
             value=1,
@@ -393,7 +462,7 @@ if __name__ == "__main__":
         ratings=ratings,
     )
 
-    labelling_task = args["labelling_task"]
+    labelling_task = args.labelling_task
     tasks = {
         "overall_quality": UltraFeedbackTask.for_overall_quality(),
         "instruction_following": UltraFeedbackTask.for_instruction_following(),
@@ -418,7 +487,7 @@ if __name__ == "__main__":
                 task=task,
                 max_new_tokens=512,
                 num_threads=8,
-                openai_api_key=args["openai_apikey"] or os.getenv("OPENAI_API_KEY"),  #os.getenv("OPENAI_API_KEY", None),
+                api_key=OPENAI_API_TOKEN,
                 temperature=0.3
             )
         )
@@ -428,31 +497,42 @@ if __name__ == "__main__":
 
     for task_name, labeller_pipe in labeller_pipelines.items():
         print(f"RUNNING {task_name}")
-        checkpoint = DatasetCheckpoint(path=here / f"checkpoint_label_{task_name}", save_frequency=save_frequency)
+        checkpoint = DatasetCheckpoint(
+            strategy="hf-hub",
+            extra_kwargs={
+                "repo_id": f"argilla/disticoder-dpo-v2-{task_name}",
+                "token": HF_API_TOKEN,
+                "private": True,
+                "split": "train"
+            },
+            save_frequency=args.save_freq
+        )
 
-        if not checkpoint.path.is_dir():
+        new_ds = labeller_pipe.generate(
+            ds,
+            num_generations=1,
+            batch_size=16,
+            checkpoint_strategy=checkpoint,
+        )
+        datasets[task_name] = new_ds
 
-            new_ds = labeller_pipe.generate(
-                ds,
-                num_generations=1,
-                batch_size=8,
-                display_progress_bar=True,
-                checkpoint_strategy=checkpoint,
-            )
-            datasets[task_name] = new_ds
-        else:
-            datasets[task_name] = CustomDataset.load_from_disk(checkpoint.path)
+    print("----" * 5)
+    print("Labelled OSS Instruct dataset, exiting")
+    print("----" * 5)
+    sys.exit(0)
 
     # Push all the datasets to argilla, delete them if they exist
     dataset_names = [
-        ("overall_quality", "overall-quality-preference-oss-instruct"),
-        ("instruction_following", "instruction-following-preference-oss-instruct"),
-        ("honesty", "honesty-preference-oss-instruct"),
-        ("truthfulness", "truthfulness-preference-oss-instruct"),
-        ("code_quality", "code-quality-preference-oss-instruct")
+        ("overall_quality", "overall-quality-disticoder-dpo-v2"),
+        ("instruction_following", "instruction-following-disticoder-dpo-v2"),
+        ("honesty", "honesty-disticoder-dpo-v2"),
+        ("truthfulness", "truthfulness-disticoder-dpo-v2"),
+        ("code_quality", "code-quality-disticoder-dpo-v2")
     ]
     if not labelling_task == "all":
         dataset_names = [(short, name) for short, name in dataset_names if short == labelling_task]
+
+    # TODO: PLACE THIS INTO A SEPARATE SCRIPT
 
     workspace = "admin"
 
