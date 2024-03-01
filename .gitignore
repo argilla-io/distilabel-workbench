@@ -164,4 +164,4 @@ cython_debug/
 data/
 ```
 .vscode
-scripts/function_calling_dataset/poetry.lock
+.DS_Store
