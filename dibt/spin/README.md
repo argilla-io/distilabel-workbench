@@ -109,24 +109,7 @@ bash scripts/finetune-mine.sh
 
 wandb runs:
 
-- [argilla-io/dibt-top-spin-iter0](https://wandb.ai/argilla-io/dibt-top-spin-iter0?workspace=user-plaguss-argilla)
+- [argilla-io/dibt-top-spin-iter0](https://wandb.ai/argilla-io/dibt-top-spin-iter1?workspace=user-plaguss-argilla)
 
-### NOTES
+- [argilla-io/dibt-top-spin-iter0](https://wandb.ai/argilla-io/dibt-top-spin-iter0/runs/ppqznjlm?workspace=user-plaguss-argilla)
 
-- The `batch_size` seemed big, some warnings appeared during training.
-
-- More frequency of logging for the test set, or nothing appears.
-
-- No automatic push to the hub is configured, has to be done manually afterwards:
-
-```python
-from transformers import AutoModelForCausalLM, AutoTokenizer
-model = AutoModelForCausalLM.from_pretrained("/outputs")
-tokenizer = AutoTokenizer.from_pretrained("/outputs")
-model.push_to_hub("argilla/OpenHermes-2.5-Mistral-7B-top-SPIN-iter0", private=True)
-tokenizer.push_to_hub("argilla/OpenHermes-2.5-Mistral-7B-top-SPIN-iter0", private=True)
-```
-
-- The model generates weird content. Possible reasons:
-    - Dataset to small for a full Fine Tune. -> Decrease to 1 epoch.
-    - Bad quality of the dataset. -> Try with the full dataset.
