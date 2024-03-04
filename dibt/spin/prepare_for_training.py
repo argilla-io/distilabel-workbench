@@ -24,8 +24,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare the dataset for training using SPIN. Start from the 10k ranked dataset and add the synthetic responses as real.")
     parser.add_argument("--real-dataset", type=str, default="argilla/10k_prompts_ranked_with_responses")
     parser.add_argument("--sft-dataset", type=str, default="argilla/10k_prompts_ranked_sft")
-    parser.add_argument("--target-dataset", type=str, default="argilla/10k_prompts_SPIN_iter0")
-    parser.add_argument("--portion", type=str, default=1)
+    parser.add_argument("--target-dataset", type=str, default="argilla/10k_prompts_top_avg_rating3_SPIN_iter0")
+    parser.add_argument("--portion", type=str, default="top")
     # 1) Create a new variable to allow generating the dataset up to a point.
     
     args = parser.parse_args()
@@ -42,13 +42,13 @@ if __name__ == "__main__":
 
         indices = df_real[
             (df_real["num_responses"] > 1) &
-            (df_real["avg_rating"] >= 4)
+            (df_real["avg_rating"] >= 3)
         ].index
 
         ds_real = ds_real.select(indices)
         ds_sft = ds_sft.select(indices)
         if "top" not in args.target_dataset:
-            args.target_dataset += "_bottom"
+            args.target_dataset += "_top"
 
     elif args.portion == "bottom":
         df_real = ds_real.to_pandas()

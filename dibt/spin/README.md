@@ -1,13 +1,15 @@
 ## Prepare the data
 
-Scripts:
+### iter0
+
+During the first iteration (iter0), these are the scripts used:
 
 - `generate_reference_spin.py`
     Script to generate the reference responses, uses `mistral-large`.
 
     Dataset: [argilla/10k_prompts_ranked_with_responses](https://huggingface.co/datasets/argilla/10k_prompts_ranked_with_responses)
 
-- generate_iter_spin.py
+- `generate_iter_spin.py`
     Script to generate the initial "generated" responses, from the SFT model that will then be fine-tuned.
 
     Dataset: [argilla/10k_prompts_ranked_sft](https://huggingface.co/datasets/argilla/10k_prompts_ranked_sft)
@@ -20,7 +22,36 @@ Scripts:
     Running the following: 
 
     ```console
-    python spin/prepare_for_training.py --portion top --target-dataset argilla/10k_prompts_top_SPIN_iter0
+    python spin/prepare_for_training.py \
+        --portion top \
+        --target-dataset argilla/10k_prompts_avg_rating3_SPIN_iter0
+    ```
+
+### iter1 (NOT USED YET)
+
+- `generate_iter_spin.py`
+
+    Regenerates the "generated" responses from the model in the previous iteration:
+
+    ```console
+    python spin/generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_top_SPIN_iter0" \
+        --new-dataset "argilla/10k_prompts_top_SPIN_iter1_generated" \
+        --model-name "argilla/OpenHermes-2.5-Mistral-7B-top-SPIN-iter0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+    Dataset: [argilla/10k_prompts_top_SPIN_iter1_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter1_generated)
+
+- `transform_iter_generated.py`
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_top_SPIN_iter1_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter1"
     ```
 
 ## Fine tune using SPIN
@@ -42,8 +73,7 @@ pip install torch==2.1.1 --index-url https://download.pytorch.org/whl/cu121
 Clone and install the repo from source:
 
 ```console
-git clone https://github.com/uclaml/SPIN.git
-cd SPIN
+git clone https://github.com/uclaml/SPIN.git && cd SPIN
 ```
 
 Install package and flash-attn
@@ -73,7 +103,7 @@ Overwrite the config files from the original repo with these ones, and add the `
 Run the script 
 
 ```console
-bash scripts/finetune-my.sh
+bash scripts/finetune-mine.sh
 ```
 
 wandb runs:
