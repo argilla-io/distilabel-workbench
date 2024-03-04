@@ -27,7 +27,7 @@ During the first iteration (iter0), these are the scripts used:
         --target-dataset argilla/10k_prompts_avg_rating3_SPIN_iter0
     ```
 
-### iter1 (NOT USED YET)
+### iter1
 
 - `generate_iter_spin.py`
 
@@ -53,6 +53,13 @@ During the first iteration (iter0), these are the scripts used:
         --generated-dataset "argilla/10k_prompts_top_SPIN_iter1_generated" \
         --new-dataset "argilla/10k_prompts_SPIN_iter1"
     ```
+    ```console
+    python spin/transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_top_SPIN_iter1_generated_v2" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter1_v2"
+    ```
+
 
 ## Fine tune using SPIN
 
@@ -93,9 +100,9 @@ Log to wandb:
 
 ```console
 pip install wandb
-wandb login
+wandb login $WANDB_TOKEN
 export WANDB_ENTITY="argilla-io"
-export WANDB_PROJECT="dibt-top-spin-iter0"
+export WANDB_PROJECT="dibt-top-spin-iter1"
 ```
 
 Overwrite the config files from the original repo with these ones, and add the `finetune-mine.sh` script:
