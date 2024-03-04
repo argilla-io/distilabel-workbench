@@ -48,12 +48,6 @@ During the first iteration (iter0), these are the scripts used:
 - `transform_iter_generated.py`
 
     ```console
-    python transform_iter_generated.py \
-        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
-        --generated-dataset "argilla/10k_prompts_top_SPIN_iter1_generated" \
-        --new-dataset "argilla/10k_prompts_SPIN_iter1"
-    ```
-    ```console
     python spin/transform_iter_generated.py \
         --real-dataset "argilla/10k_prompts_ranked_with_responses" \
         --generated-dataset "argilla/10k_prompts_top_SPIN_iter1_generated_v2" \
