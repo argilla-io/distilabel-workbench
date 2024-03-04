@@ -3,11 +3,22 @@
 git clone https://github.com/argilla-io/distilabel.git
 pip install -e ".[vllm]"
 
-python generate_iter.py \
+# First iteration
+
+python generate_iter_spin.py \
     --hf-apikey $HF_API_TOKEN \
     --source-dataset "DIBT/10k_prompts_ranked" \
     --new-dataset "argilla/10k_prompts_ranked_sft" \
     --model-name "teknium/OpenHermes-2.5-Mistral-7B" \
+    --batch-size 128 \
+    --cuda-devices "0,1"
+
+# Second iteration
+python generate_iter_spin.py \
+    --hf-apikey $HF_API_TOKEN \
+    --source-dataset "argilla/10k_prompts_top_SPIN_iter0" \
+    --new-dataset "argilla/10k_prompts_top_SPIN_iter1_generated" \
+    --model-name "argilla/OpenHermes-2.5-Mistral-7B-top-SPIN-iter0" \
     --batch-size 128 \
     --cuda-devices "0,1"
 """
@@ -32,7 +43,18 @@ from dataclasses import dataclass
 
 
 def get_dataset(ds_name: str) -> Dataset:
-    return load_dataset(ds_name, split="train")
+    if not "iter" in ds_name:
+        dataset = load_dataset(ds_name, split="train")
+        dataset = dataset.rename_column("prompt", "input")
+    else:
+        from datasets import concatenate_datasets
+        dataset = load_dataset(ds_name)
+        dataset = concatenate_datasets([dataset["train"], dataset["test"]])
+        def get_input(ex):
+            return {"input": ex["real"][0]["content"]}
+        dataset = dataset.map(get_input, remove_columns=["real", "generated"])
+        
+    return dataset
 
 
 @dataclass
@@ -40,8 +62,8 @@ class SPINTextGenerationTask(TextGenerationTask):
     """Generic task to generate the prompts following SPIN.
     [SPIN](https://github.com/uclaml/SPIN/blob/main/spin/generate.py)
     """
-    system_prompt: str = ""
-    # This has to be update for the model to use
+    # This has to be updated for the model to use, it's set to the same used in the
+    # original paper
     spin_prompt: str = "### Instruction: {prompt}\n\n### Response:\n"
 
     def generate_prompt(self, input: str) -> Prompt:
@@ -88,7 +110,6 @@ if __name__ == "__main__":
     login(token=HF_API_TOKEN)
 
     dataset = get_dataset(args.source_dataset)
-    dataset = dataset.rename_column("prompt", "input")
 
     num_generations = len(dataset)
     print("num_generations", num_generations)
