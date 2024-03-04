@@ -237,16 +237,20 @@ def pipeline_benchmark_models(run_config: dict):
     dataset_paths = run_config.get("data", {}).get("input", {})
     benchmark_config = run_config.get("benchmark", {})
     repo_id = dataset_paths.get("repo_id")
-    dataset = load_dataset(repo_id)
-    generate_config = benchmark_config.get("generate", {})
-    dataset = benchmark.generate(
-        dataset=dataset,
-        checkpoint_strategy=utils.setup_checkpoint_strategy(
-            run_config, "benchmark_generate"
-        ),
-        **generate_config,
-    )
-
+    if repo_id is not None:
+        dataset = load_dataset(repo_id)
+        generate_config = benchmark_config.get("generate", {})
+        dataset = benchmark.generate(
+            dataset=dataset,
+            checkpoint_strategy=utils.setup_checkpoint_strategy(
+                run_config, "benchmark_generate"
+            ),
+            **generate_config,
+        )
+    elif dataset_paths.get("generated"):
+        dataset = utils.load_wrapped_dataset(
+            dataset_paths.get("generated"), responses.unwrap
+        )
     feedback_config = benchmark_config.get("feedback", {})
     feedback_dataset = feedback.generate(
         dataset=dataset,

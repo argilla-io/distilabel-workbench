@@ -1,6 +1,5 @@
 from random import shuffle
-
-from typing import ClassVar, Dict, List
+from typing import ClassVar, Dict, List, Any
 
 from pydantic import BaseModel
 
@@ -117,7 +116,7 @@ shuffle(example_function_domain)
 
 class FunctionCallResponse(BaseModel):
     name: str
-    arguments: Dict[str, str]
+    arguments: Dict[str, Any]
 
 
 class FunctionCallResponseArray(BaseModel):
