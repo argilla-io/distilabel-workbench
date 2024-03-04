@@ -2,8 +2,8 @@ name: fml-generation-1
 save_frequency: 50
 data:
   input:
-    # repo_id: burtenshaw/function_calling_dataset
-    generated: /workspace/distilabel-workbench/scripts/function_calling_dataset/data/fml-generation-1/2024-03-01-14-48-53/checkpoints/benchmark_generate
+    repo_id: burtenshaw/function_calling_dataset
+    # generated: /workspace/distilabel-workbench/scripts/function_calling_dataset/data/fml-generation-1/2024-03-01-14-48-53/checkpoints/benchmark_generate
   output:
     argilla: fml-generation
 generation:

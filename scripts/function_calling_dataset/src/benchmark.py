@@ -54,7 +54,8 @@ models = [
     # ("mixtral-8x7b-instruct-v0.1", mixtral),
     # ("notus-7b-v1", notus),
     # ("mistral-7b-instruct-v0.1", mistral),
-    ("functionary-small-v2.2", functionary_llm_small)
+    # ("functionary-small-v2.2", functionary_llm_small),
+    ("functionary-medium-v2.2", functionary_llm_medium)
 ]
 
 def wrangle_dataset(dataset, max_inputs=None, max_row_inputs=3):

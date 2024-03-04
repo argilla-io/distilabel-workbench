@@ -85,5 +85,5 @@ class FunctionUseOpenAILLM(OpenAILLM):
             outputs.append(output)
         return outputs
 
-functionary_llm_small = FunctionUseOpenAILLM(client=functionary_client, model="meetkai/functionary-small-v2.2", task=FunctionResponseGeneratorTask())
-# functionary_llm_medium = FunctionUseOpenAILLM(client=functionary_client, model="meetkai/functionary-medium-v2.2", task=FunctionResponseGeneratorTask())
+# functionary_llm_small = FunctionUseOpenAILLM(client=functionary_client, model="meetkai/functionary-small-v2.2", task=FunctionResponseGeneratorTask())
+functionary_llm_medium = FunctionUseOpenAILLM(client=functionary_client, model="meetkai/functionary-medium-v2.2", task=FunctionResponseGeneratorTask())
