@@ -3,12 +3,14 @@ import json
 import pandas as pd
 from distilabel.dataset import Dataset
 from distilabel.pipeline import Pipeline
+
 # from distilabel.llm import JSONOpenAILLM
 # from distilabel.llm import vLLM
 # from vllm import LLM
 
 from src.examples import FunctionCallResponseArray
-from src.functionary import functionary_llm_small
+
+# from src.functionary import functionary_llm_small
 # from src.responses import call_task
 
 # mixtral = vLLM(
@@ -55,8 +57,9 @@ models = [
     # ("notus-7b-v1", notus),
     # ("mistral-7b-instruct-v0.1", mistral),
     # ("functionary-small-v2.2", functionary_llm_small),
-    ("functionary-medium-v2.2", functionary_llm_medium)
+    # ("functionary-medium-v2.2", functionary_llm_medium)
 ]
+
 
 def wrangle_dataset(dataset, max_inputs=None, max_row_inputs=3):
     df = dataset.to_pandas()
