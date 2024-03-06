@@ -1,0 +1,2 @@
+distilabel[openai]==0.6.0
+regex

@@ -127,6 +127,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+create
 
 # Spyder project settings
 .spyderproject
@@ -164,3 +165,4 @@ cython_debug/
 data/
 ```
 .vscode
+ckpt
