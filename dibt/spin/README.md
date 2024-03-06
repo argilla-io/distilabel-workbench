@@ -45,8 +45,10 @@ During the first iteration (iter0), these are the scripts used:
 
     Regenerates the "generated" responses from the model in the previous iteration:
 
+    For OpenHermes2.5
+
     ```console
-    python spin/generate_iter_spin.py \
+    python generate_iter_spin.py \
         --hf-apikey $HF_API_TOKEN \
         --source-dataset "argilla/10k_prompts_top_SPIN_iter0" \
         --new-dataset "argilla/10k_prompts_top_SPIN_iter1_generated" \
@@ -55,15 +57,38 @@ During the first iteration (iter0), these are the scripts used:
         --cuda-devices "0,1"
     ```
 
+    For zephyr model:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter0_zephyr_top" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_top_generated" \
+        --model-name "plaguss/zephyr-7b-spin-iter0-v0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
     Dataset: [argilla/10k_prompts_top_SPIN_iter1_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter1_generated)
 
 - `transform_iter_generated.py`
 
+    For OpenHermes:
+
     ```console
-    python spin/transform_iter_generated.py \
+    python transform_iter_generated.py \
         --real-dataset "argilla/10k_prompts_ranked_with_responses" \
         --generated-dataset "argilla/10k_prompts_top_SPIN_iter1_generated_v2" \
         --new-dataset "argilla/10k_prompts_SPIN_iter1_v2"
+    ```
+
+    For zephyr:
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_top_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_top"
     ```
 
 
@@ -136,4 +161,4 @@ wandb runs:
 
     - [argilla-io/dibt-top-spin-iter0-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/439olh1m?nw=nwuserplagussargilla)
 
-    - [argilla-io/dibt-top-spin-iter1-zephyr]()
+    - [argilla-io/dibt-top-spin-iter1-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/q938reyu?nw=nwuserplagussargilla)
