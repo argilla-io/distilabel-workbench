@@ -1,7 +1,7 @@
 """Script to generate responses for DIBT 10K ranked using the SPIN model.
 
-git clone https://github.com/argilla-io/distilabel.git
-pip install -e ".[vllm]"
+# Uses distilabel==0.6.0
+pip install distilabel[vllm]
 
 # First iteration
 
