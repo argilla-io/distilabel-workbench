@@ -529,13 +529,3 @@ def load_data_helm_insruct():
         ]
     )
     return ds
-
-
-load_data_helm_insruct()
-# load_self_instruct()
-# load_koala()
-# load_vicuna()
-# load_anthropic_red_team_attempts()
-# load_anthropic_harmless_base()
-# load_best_chatgpt_prompts()
-# load_oasst1()
