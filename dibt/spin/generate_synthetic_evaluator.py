@@ -2,10 +2,13 @@
 $ python dibt/synthetic_evaluator.py
 """
 
+import re
+from typing import List
+
 from textwrap import dedent
 from typing import TypedDict, Optional
 from dataclasses import dataclass
-from distilabel.tasks import TextGenerationTask
+from distilabel.tasks import TextGenerationTask, Prompt
 
 
 class Rating(TypedDict):
@@ -42,11 +45,14 @@ class PromptEvaluationTask(TextGenerationTask):
     https://dibt-prompt-collective.hf.space/dataset/f31dabc5-12d5-4845-8361-d41be905d808/settings
     to a distilabel task.
     """
+
     ratings: List[Rating] = None
     task_description: str = None
-    system_prompt: str = "You are an AI prompt evaluator focused on rating prompts that are clear, interesting and complex for fine-tuning open source LLMs."
+    system_prompt: str = (
+        "You are an AI prompt evaluator focused on rating prompts that are clear, interesting and complex for fine-tuning open source LLMs."
+    )
 
-    def generate_prompt(self, input: str) -> Prompt:
+    def generate_prompt(self, input: str) -> "Prompt":
         render_kwargs = {
             "task_description": self.task_description,
             "ratings": self.ratings,
@@ -54,8 +60,8 @@ class PromptEvaluationTask(TextGenerationTask):
         }
         return Prompt(
             system_prompt=self.system_prompt,
-            formatted_prompt=prompt_evaluator.format(**render_kwargs)
-          )
+            formatted_prompt=prompt_evaluator.format(**render_kwargs),
+        )
 
     @classmethod
     def for_overall_quality(
@@ -103,13 +109,15 @@ In the case that you feel unequipped of rating a specific prompt, please rate it
                     description="**Very Good**:\n Comprehensive and explicit, leaving no room for ambiguity. Perfectly guides the AI and includes details.",
                 ),
             ]
-            written_ratings = "\n".join([f"{rating['value']}. {rating['description']}" for rating in ratings])
+            written_ratings = "\n".join(
+                [f"{rating['value']}. {rating['description']}" for rating in ratings]
+            )
         kwargs.update({"ratings": written_ratings})
         return cls(**kwargs)
 
-    def parse_output(self, output: str) -> CritiqueTaskOutput:  # type: ignore
+    def parse_output(self, output: str) -> "CritiqueTaskOutput":  # type: ignore
         """Parses the output of the model into the desired format."""
-        pattern = r'<rating>(.*?)</rating>\s*<rationale>(.*?)</rationale>'
+        pattern = r"<rating>(.*?)</rating>\s*<rationale>(.*?)</rationale>"
         match = re.findall(pattern, output, re.DOTALL)
         if match:
             return PromptEvaluatorOutput(
@@ -117,27 +125,43 @@ In the case that you feel unequipped of rating a specific prompt, please rate it
                 rationale=match[0][1].strip(),
             )
 
+
 if __name__ == "__main__":
+    import os
+
     from distilabel.pipeline import Pipeline
     from distilabel.llm import OpenAILLM
-    from datasets import load_dataset
+    from datasets import load_dataset, concatenate_datasets
     from distilabel.dataset import DatasetCheckpoint
-    
-    dataset = load_dataset("DIBT/10k_prompts_ranked", split="train").rename_column("prompt", "input")
+
+    from dotenv import load_dotenv
+
+    load_dotenv()
 
     OPENAI_API_TOKEN = os.getenv("OPENAI_API_TOKEN")
     HF_API_TOKEN = os.getenv("HF_API_TOKEN")
-    NEW_DATASET_NAME = "argilla/10k_prompts_ranked_synthetic"
+    # DATASET_CONFIGURAITON = "DIBT/10k_prompts_ranked"
+    MAX_ROWS = 10_000
+    MIN_NUM_RESPONSES = 1
+    NEW_DATASET_NAME = "argilla/DIBT_prompts_ranked_synthetic_n3_s1000"
 
+    latest_dataset = load_dataset(NEW_DATASET_NAME, split="train")
+    dataset = load_dataset("DIBT/10k_prompts_ranked", split="train").rename_column(
+        "prompt", "input"
+    )
+    dataset = dataset.filter(
+        lambda x: int(x["num_responses"]) >= MIN_NUM_RESPONSES, keep_in_memory=True
+    )
+    dataset = dataset.select(range(MAX_ROWS))
     checkpoint_strategy = DatasetCheckpoint(
         strategy="hf-hub",
         extra_kwargs={
             "repo_id": NEW_DATASET_NAME,
             "token": HF_API_TOKEN,
             "private": True,
-            "split": "train"
+            "split": "train",
         },
-        save_frequency=500
+        save_frequency=100,
     )
 
     pipe = Pipeline(
@@ -147,7 +171,7 @@ if __name__ == "__main__":
             max_new_tokens=512,
             num_threads=8,
             api_key=OPENAI_API_TOKEN,
-            temperature=0.3
+            temperature=0.3,
         )
     )
     new_ds = pipe.generate(
@@ -155,4 +179,12 @@ if __name__ == "__main__":
         num_generations=1,
         batch_size=16,
         checkpoint_strategy=checkpoint_strategy,
+    )
+
+    updated_dataset = load_dataset(NEW_DATASET_NAME, split="train")
+
+    updated_dataset = concatenate_datasets([updated_dataset, latest_dataset])
+
+    updated_dataset.push_to_hub(
+        NEW_DATASET_NAME, use_auth_token=HF_API_TOKEN, split="train"
     )
