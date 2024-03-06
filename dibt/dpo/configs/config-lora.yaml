@@ -35,7 +35,7 @@ training_args:
   do_eval: true
   do_train: true
   evaluation_strategy: steps
-  eval_steps: 25
+  eval_steps: 15
   gradient_accumulation_steps: 2
   gradient_checkpointing: true
   gradient_checkpointing_kwargs:
