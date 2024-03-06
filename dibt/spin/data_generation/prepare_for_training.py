@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
         indices = df_real[
             (df_real["num_responses"] > 1) &
-            (df_real["avg_rating"] >= 3)
+            (df_real["avg_rating"] >= 4)
         ].index
 
         ds_real = ds_real.select(indices)

@@ -12,19 +12,31 @@ During the first iteration (iter0), these are the scripts used:
 - `generate_iter_spin.py`
     Script to generate the initial "generated" responses, from the SFT model that will then be fine-tuned.
 
-    Dataset: [argilla/10k_prompts_ranked_sft](https://huggingface.co/datasets/argilla/10k_prompts_ranked_sft)
+    Dataset: [argilla/10k_prompts_ranked_sft_zephyr](https://huggingface.co/datasets/argilla/10k_prompts_ranked_sft_zephyr)
+
+    For zephyr run with the following command:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "DIBT/10k_prompts_ranked" \
+        --new-dataset "argilla/10k_prompts_ranked_sft_zephyr" \
+        --model-name "alignment-handbook/zephyr-7b-sft-full" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
 
 - `prepare_for_training.py`
     Generates the dataset that will be directly ingested in the SPINTrainer.
 
     Dataset: [argilla/10k_prompts_top_SPIN_iter0](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter0)
 
-    Running the following: 
+    Running the following for zephyr: 
 
     ```console
-    python spin/prepare_for_training.py \
+    python prepare_for_training.py \
         --portion top \
-        --target-dataset argilla/10k_prompts_avg_rating3_SPIN_iter0
+        --target-dataset argilla/10k_prompts_SPIN_iter0_zephyr_top
     ```
 
 ### iter1
@@ -96,20 +108,32 @@ Log to wandb:
 pip install wandb
 wandb login $WANDB_TOKEN
 export WANDB_ENTITY="argilla-io"
-export WANDB_PROJECT="dibt-top-spin-iter1"
+export WANDB_PROJECT="dibt-spin-zephyr"
+export WANDB_NAME="zephyr-7b-spin-iter0-v0"
 ```
 
-Overwrite the config files from the original repo with these ones, and add the `finetune-mine.sh` script:
+Overwrite the config files from the original repo with these ones, and add the `finetune.sh` script:
 
 Run the script 
 
 ```console
-bash scripts/finetune-mine.sh
+bash scripts/finetune.sh
 ```
 
 wandb runs:
 
-- [argilla-io/dibt-top-spin-iter0](https://wandb.ai/argilla-io/dibt-top-spin-iter1?workspace=user-plaguss-argilla)
+- OpenHermes 2.5:
 
-- [argilla-io/dibt-top-spin-iter0](https://wandb.ai/argilla-io/dibt-top-spin-iter0/runs/ppqznjlm?workspace=user-plaguss-argilla)
+    With `avg_rating>=3 & num_responses>1`:
 
+    - [argilla-io/dibt-top-spin-iter0](https://wandb.ai/argilla-io/dibt-top-spin-iter0/runs/ppqznjlm?workspace=user-plaguss-argilla)
+
+    - [argilla-io/dibt-top-spin-iter1](https://wandb.ai/argilla-io/dibt-top-spin-iter1?workspace=user-plaguss-argilla)
+
+- Zephyr
+
+    With `avg_rating>=4 & num_responses>1`:
+
+    - [argilla-io/dibt-top-spin-iter0-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/439olh1m?nw=nwuserplagussargilla)
+
+    - [argilla-io/dibt-top-spin-iter1-zephyr]()
