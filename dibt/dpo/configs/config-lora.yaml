@@ -1,0 +1,66 @@
+dataset_args:
+  path: argilla/10k_prompts_dpo
+
+format_args:
+  prompt_format: zephyr
+
+model_args:
+  pretrained_model_name_or_path: alignment-handbook/zephyr-7b-sft-full
+  torch_dtype: float16
+
+peft_config:
+  r: 16
+  lora_alpha: 16
+  lora_dropout: 0.05
+  bias: none
+  task_type: CAUSAL_LM
+  target_modules:
+    - k_proj
+    - gate_proj
+    - v_proj
+    - up_proj
+    - q_proj
+    - o_proj
+    - down_proj
+
+wandb_args:
+  entity: argilla-io
+  project: dibt-dpo
+  name: zephyr-7b-lora-dpo-dibt-v0
+
+training_args:
+  bf16: true
+  beta: 0.1
+  loss_type: sigmoid
+  do_eval: true
+  do_train: true
+  evaluation_strategy: steps
+  eval_steps: 25
+  gradient_accumulation_steps: 2
+  gradient_checkpointing: true
+  gradient_checkpointing_kwargs:
+    use_reentrant: False
+  hub_model_id: plaguss/zephyr-7b-lora-dpo-dibt-v0
+  hub_model_revision: v0
+  hub_strategy: every_save
+  hub_private_repo: true
+  push_to_hub: true
+  learning_rate: 5.0e-7
+  logging_steps: 10
+  lr_scheduler_type: cosine
+  max_length: 1024
+  max_prompt_length: 512
+  num_train_epochs: 2
+  optim: paged_adamw_32bit
+  output_dir: data/zephyr-7b-sft-lora-dpo-v0
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  save_strategy: epoch
+  save_total_limit: null
+  seed: 42
+  warmup_ratio: 0.1
+  report_to:
+    - wandb
+
+use_accelerate: true
+use_unsloth: false
