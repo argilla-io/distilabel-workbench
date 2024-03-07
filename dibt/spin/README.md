@@ -123,6 +123,37 @@ During the first iteration (iter0), these are the scripts used:
         --new-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_top"
     ```
 
+### iter3
+
+- `generate_iter_spin.py`
+
+    Regenerates the "generated" responses from the model in the previous iteration:
+
+    For zephyr model:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter0_zephyr_top" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_top_generated" \
+        --model-name "plaguss/zephyr-7b-spin-iter2-v0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+    Dataset: [argilla/10k_prompts_top_SPIN_iter3_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter3_generated)
+
+- `transform_iter_generated.py`
+
+    For zephyr:
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_top_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_top"
+    ```
+
 ## Fine tune using SPIN
 
 ### On Runpod
@@ -195,3 +226,5 @@ wandb runs:
     - [argilla-io/dibt-top-spin-iter1-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/q938reyu?nw=nwuserplagussargilla)
 
     - [argilla-io/dibt-top-spin-iter2-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/q40amnp0?nw=nwuserplagussargilla)
+
+    - [argilla-io/dibt-top-spin-iter3-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/u8znanpw?nw=nwuserplagussargilla)
