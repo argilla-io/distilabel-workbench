@@ -1,20 +1,28 @@
+# Running SPIN on DIBT 10K ranked
+
+These README contains the instructions to run [SPIN](https://github.com/uclaml/SPIN) on a subset of the [DIBT/10k_prompts_ranked](https://huggingface.co/datasets/DIBT/10k_prompts_ranked) dataset. It contains the references to all the scripts to generate the datasets, the configuration files used for the training process and the setup used to run the model. The dataset generation was done using [distilabel==0.6.0](https://github.com/argilla-io/distilabel).
+
+SPIN needs a specific format for the data to do the training, where the "real" data is the reference for the model to improve. As the dataset was made of prompts, we decided to generate these responses using [`mistral-large`](https://docs.mistral.ai/platform/endpoints/). The different iterations of the "generated" datasets were created using `distilabel` with `vllm`, using 2 A100 GPUs (just for speed, it should work with less computer power, just need to update the `--cuda-devices` and `--batch-size` arguments accordingly).
+
 ## Prepare the data
 
-### iter0
-
-During the first iteration (iter0), these are the scripts used:
+Initially, we create the reference dataset with the *real* responses being generated from `mistral-large`, using the following script:
 
 - `generate_reference_spin.py`
-    Script to generate the reference responses, uses `mistral-large`.
+    Script to generate the reference responses, uses `mistral-large`:
 
     Dataset: [argilla/10k_prompts_ranked_with_responses](https://huggingface.co/datasets/argilla/10k_prompts_ranked_with_responses)
+
+The following are the steps to prepare the training data for SPIN, and the resulting datasets:
+
+<details><summary> SPIN iter 0 </summary><hr>
 
 - `generate_iter_spin.py`
     Script to generate the initial "generated" responses, from the SFT model that will then be fine-tuned.
 
     Dataset: [argilla/10k_prompts_ranked_sft_zephyr](https://huggingface.co/datasets/argilla/10k_prompts_ranked_sft_zephyr)
 
-    For zephyr run with the following command:
+    Run the following:
 
     ```console
     python generate_iter_spin.py \
@@ -27,11 +35,11 @@ During the first iteration (iter0), these are the scripts used:
     ```
 
 - `prepare_for_training.py`
-    Generates the dataset that will be directly ingested in the SPINTrainer.
+    Generates the dataset that will be directly ingested in the `SPINTrainer`.
 
     Dataset: [argilla/10k_prompts_top_SPIN_iter0](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter0)
 
-    Running the following for zephyr: 
+    Running the following python script: 
 
     ```console
     python prepare_for_training.py \
@@ -39,25 +47,15 @@ During the first iteration (iter0), these are the scripts used:
         --target-dataset argilla/10k_prompts_SPIN_iter0_zephyr_top
     ```
 
-### iter1
+</details>
+
+
+<details><summary> SPIN iter 1 </summary><hr>
+
 
 - `generate_iter_spin.py`
 
     Regenerates the "generated" responses from the model in the previous iteration:
-
-    For OpenHermes2.5
-
-    ```console
-    python generate_iter_spin.py \
-        --hf-apikey $HF_API_TOKEN \
-        --source-dataset "argilla/10k_prompts_top_SPIN_iter0" \
-        --new-dataset "argilla/10k_prompts_top_SPIN_iter1_generated" \
-        --model-name "argilla/OpenHermes-2.5-Mistral-7B-top-SPIN-iter0" \
-        --batch-size 128 \
-        --cuda-devices "0,1"
-    ```
-
-    For zephyr model:
 
     ```console
     python generate_iter_spin.py \
@@ -73,16 +71,7 @@ During the first iteration (iter0), these are the scripts used:
 
 - `transform_iter_generated.py`
 
-    For OpenHermes:
-
-    ```console
-    python transform_iter_generated.py \
-        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
-        --generated-dataset "argilla/10k_prompts_top_SPIN_iter1_generated_v2" \
-        --new-dataset "argilla/10k_prompts_SPIN_iter1_v2"
-    ```
-
-    For zephyr:
+    The script transforms the generated responses to the format expected by SPIN trainer:
 
     ```console
     python transform_iter_generated.py \
@@ -91,14 +80,15 @@ During the first iteration (iter0), these are the scripts used:
         --new-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_top"
     ```
 
+</details>
 
-### iter2
+
+<details><summary> SPIN iter 2 </summary><hr>
+
 
 - `generate_iter_spin.py`
 
     Regenerates the "generated" responses from the model in the previous iteration:
-
-    For zephyr model:
 
     ```console
     python generate_iter_spin.py \
@@ -114,7 +104,7 @@ During the first iteration (iter0), these are the scripts used:
 
 - `transform_iter_generated.py`
 
-    For zephyr:
+    The script transforms the generated responses to the format expected by SPIN trainer:
 
     ```console
     python transform_iter_generated.py \
@@ -123,13 +113,13 @@ During the first iteration (iter0), these are the scripts used:
         --new-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_top"
     ```
 
-### iter3
+</details>
+
+<details><summary> SPIN iter 3 </summary><hr>
 
 - `generate_iter_spin.py`
 
     Regenerates the "generated" responses from the model in the previous iteration:
-
-    For zephyr model:
 
     ```console
     python generate_iter_spin.py \
@@ -145,7 +135,7 @@ During the first iteration (iter0), these are the scripts used:
 
 - `transform_iter_generated.py`
 
-    For zephyr:
+    The script transforms the generated responses to the format expected by SPIN trainer:
 
     ```console
     python transform_iter_generated.py \
@@ -154,17 +144,24 @@ During the first iteration (iter0), these are the scripts used:
         --new-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_top"
     ```
 
+</details>
+
+
 ## Fine tune using SPIN
 
-### On Runpod
+The following steps are almost a copy from the [SPIN](https://github.com/uclaml/SPIN) repository, take a look there for more information.
 
-Runpod setup:
-- 4 A100 80Gb
-- 500Gb container/volume (EACH!)
+### Runpod
 
-### Connected to the pod
+We used Runpod with the following setup:
 
-And follow the instructions from SPIN repo:
+- 4 A100 80Gb.
+- 500Gb container and volume.
+- Base image with CUDA 12.1.
+
+### Once with the POD running
+
+These are the steps outlined in the SPIN repo, you can run them by running the script in `scripts/setup.sh`:
 
 ```console
 pip install torch==2.1.1 --index-url https://download.pytorch.org/whl/cu121
@@ -194,37 +191,28 @@ Log to wandb:
 ```console
 pip install wandb
 wandb login $WANDB_TOKEN
+```
+
+And update the WANDB variables to keep track of the experiments:
+
+```console
 export WANDB_ENTITY="argilla-io"
 export WANDB_PROJECT="dibt-spin-zephyr"
 export WANDB_NAME="zephyr-7b-spin-iter0-v0"
 ```
 
-Overwrite the config files from the original repo with these ones, and add the `finetune.sh` script:
-
-Run the script 
+After the previous step, replace the config file of the model to run, and the `finetune.sh` script, and start the training process:
 
 ```console
 bash scripts/finetune.sh
 ```
 
-wandb runs:
+### Weights and Biases runs
 
-- OpenHermes 2.5:
+- [argilla-io/dibt-top-spin-iter0-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/439olh1m?nw=nwuserplagussargilla)
 
-    With `avg_rating>=3 & num_responses>1`:
+- [argilla-io/dibt-top-spin-iter1-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/q938reyu?nw=nwuserplagussargilla)
 
-    - [argilla-io/dibt-top-spin-iter0](https://wandb.ai/argilla-io/dibt-top-spin-iter0/runs/ppqznjlm?workspace=user-plaguss-argilla)
+- [argilla-io/dibt-top-spin-iter2-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/q40amnp0?nw=nwuserplagussargilla)
 
-    - [argilla-io/dibt-top-spin-iter1](https://wandb.ai/argilla-io/dibt-top-spin-iter1?workspace=user-plaguss-argilla)
-
-- Zephyr
-
-    With `avg_rating>=4 & num_responses>1`:
-
-    - [argilla-io/dibt-top-spin-iter0-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/439olh1m?nw=nwuserplagussargilla)
-
-    - [argilla-io/dibt-top-spin-iter1-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/q938reyu?nw=nwuserplagussargilla)
-
-    - [argilla-io/dibt-top-spin-iter2-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/q40amnp0?nw=nwuserplagussargilla)
-
-    - [argilla-io/dibt-top-spin-iter3-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/u8znanpw?nw=nwuserplagussargilla)
+- [argilla-io/dibt-top-spin-iter3-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/u8znanpw?nw=nwuserplagussargilla)

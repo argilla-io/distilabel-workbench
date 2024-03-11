@@ -43,7 +43,6 @@ class SPINTextGenerationTask(TextGenerationTask):
     [SPIN](https://github.com/uclaml/SPIN/blob/main/spin/generate.py)
     """
     system_prompt: str = ""
-    # spin_prompt: str = "### Instruction: {prompt}\n\n### Response:\n" 
 
     def generate_prompt(self, input: str) -> Prompt:
         return Prompt(
