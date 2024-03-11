@@ -8,7 +8,7 @@ python dpo/data_preparation/prepare_for_training.py \
     --target-dataset "argilla/10k_prompts_dpo"
 ```
 
-## Fine tune using SPIN
+## Fine tune using DPO
 
 ### On Runpod
 
@@ -30,6 +30,6 @@ Move the configuration file and the `finetune.sh` to the root of the repo, and r
 bash finetune.sh
 ```
 
-> [!NOTE]
-> There was a bug in the current version the model was trained, should be fixed in the next release setting `ref_model` to `None` for `PEFT`.
+### Weights and Biases runs
 
+- [argilla-io/zephyr-7b-lora-dpo-dibt-v0](https://wandb.ai/argilla-io/dibt-dpo/runs/aby7toeu?workspace=user-plaguss-argilla)
