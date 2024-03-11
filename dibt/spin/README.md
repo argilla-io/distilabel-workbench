@@ -1,6 +1,8 @@
 # Running SPIN on DIBT 10K ranked
 
-These README contains the instructions to run [SPIN](https://github.com/uclaml/SPIN) on a subset of the [DIBT/10k_prompts_ranked](https://huggingface.co/datasets/DIBT/10k_prompts_ranked) dataset. It contains the references to all the scripts to generate the datasets, the configuration files used for the training process and the setup used to run the model. The dataset generation was done using [distilabel==0.6.0](https://github.com/argilla-io/distilabel).
+These README contains the instructions to run [SPIN](https://github.com/uclaml/SPIN) on a subset of the [DIBT/10k_prompts_ranked](https://huggingface.co/datasets/DIBT/10k_prompts_ranked) dataset: Those that have `avg_rating>=4` and `num_response>1`, making a total of 1832 records (which will then be splitted in 1648 for training and 184 for testing).
+
+It contains the references to all the scripts to generate the datasets, the configuration files used for the training process and the setup used to run the model. The dataset generation was done using [distilabel==0.6.0](https://github.com/argilla-io/distilabel).
 
 SPIN needs a specific format for the data to do the training, where the "real" data is the reference for the model to improve. As the dataset was made of prompts, we decided to generate these responses using [`mistral-large`](https://docs.mistral.ai/platform/endpoints/). The different iterations of the "generated" datasets were created using `distilabel` with `vllm`, using 2 A100 GPUs (just for speed, it should work with less computer power, just need to update the `--cuda-devices` and `--batch-size` arguments accordingly).
 
