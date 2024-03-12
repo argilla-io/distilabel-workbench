@@ -1,10 +1,10 @@
 # Model arguments
-model_name_or_path: plaguss/OpenHermes-2.5-Mistral-7B-spin-iter0-v2
+model_name_or_path: plaguss/zephyr-7b-spin-iter0-bottom-v0
 
 # Data training arguments
 dataset_mixer:
-  argilla/10k_prompts_avg_rating3_SPIN_iter0_top: 1.0
-  argilla/10k_prompts_SPIN_iter1_v2: 1.0
+  argilla/10k_prompts_SPIN_iter0_zephyr_bottom: 1.0
+  argilla/10k_prompts_SPIN_iter1_zephyr_bottom: 1.0
 dataset_splits:
 - train
 - test
@@ -18,7 +18,7 @@ evaluation_strategy: steps
 eval_steps: 25
 gradient_accumulation_steps: 2
 gradient_checkpointing: true
-hub_model_id: OpenHermes-2.5-Mistral-7B-spin-iter1-v2
+hub_model_id: zephyr-7b-spin-iter1-bottom-v0
 learning_rate: 5.0e-7
 log_level: info
 logging_steps: 10
