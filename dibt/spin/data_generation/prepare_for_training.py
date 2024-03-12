@@ -51,9 +51,14 @@ if __name__ == "__main__":
             args.target_dataset += "_top"
 
     elif args.portion == "bottom":
+        # Will limit the number of records to 1832, to have the same number of records as the top.
+        NUM_RECORDS_TOP = 1832
         df_real = ds_real.to_pandas()
 
-        indices = df_real.sort_values(by="avg_rating", ascending=False).iloc[-2000:].index
+        # Select only those with 
+        indices = df_real[
+            df_real["num_responses"] > 1
+        ].sort_values(by="avg_rating", ascending=True).iloc[:NUM_RECORDS_TOP].index
 
         ds_real = ds_real.select(indices)
         ds_sft = ds_sft.select(indices)

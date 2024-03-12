@@ -15,6 +15,8 @@ Initially, we create the reference dataset with the *real* responses being gener
 
     Dataset: [argilla/10k_prompts_ranked_with_responses](https://huggingface.co/datasets/argilla/10k_prompts_ranked_with_responses)
 
+### Experiment *top* prompts
+
 The following are the steps to prepare the training data for SPIN, and the resulting datasets:
 
 <details><summary> SPIN iter 0 </summary><hr>
@@ -149,6 +151,140 @@ The following are the steps to prepare the training data for SPIN, and the resul
 </details>
 
 
+### Experiment *bottom* prompts
+
+This contains the scripts to generate the same experiment from the *top* prompts, in this case selecting the *bottom* prompts (we have selected for those responses that have `num_response>1`, according to `avg_rating`, and selected the same amount of prompts that we had in the previous experiment, 1832).
+
+The following are the steps to prepare the training data for SPIN, and the resulting datasets:
+
+<details><summary> SPIN iter 0 </summary><hr>
+
+- `generate_iter_spin.py`
+    Script to generate the initial "generated" responses, from the SFT model that will then be fine-tuned 
+    (**if the previous experiment was run, this dataset should be already generated**).
+
+    Dataset: [argilla/10k_prompts_ranked_sft_zephyr](https://huggingface.co/datasets/argilla/10k_prompts_ranked_sft_zephyr)
+
+    Run the following:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "DIBT/10k_prompts_ranked" \
+        --new-dataset "argilla/10k_prompts_ranked_sft_zephyr" \
+        --model-name "alignment-handbook/zephyr-7b-sft-full" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+- `prepare_for_training.py`
+    Generates the dataset that will be directly ingested in the `SPINTrainer`.
+
+    Dataset: [argilla/10k_prompts_bottom_SPIN_iter0](https://huggingface.co/datasets/argilla/10k_prompts_bottom_SPIN_iter0)
+
+    Running the following python script: 
+
+    ```console
+    python prepare_for_training.py \
+        --portion bottom \
+        --target-dataset argilla/10k_prompts_SPIN_iter0_zephyr_bottom
+    ```
+
+</details>
+
+<details><summary> SPIN iter 1 </summary><hr>
+
+- `generate_iter_spin.py`
+
+    Regenerates the "generated" responses from the model in the previous iteration:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter0_zephyr_bottom" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_bottom_generated" \
+        --model-name "plaguss/zephyr-7b-spin-iter0-bottom-v0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+    Dataset: [argilla/10k_prompts_bottom_SPIN_iter1_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter1_generated)
+
+- `transform_iter_generated.py`
+
+    The script transforms the generated responses to the format expected by SPIN trainer:
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_bottom_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_bottom"
+    ```
+</details>
+
+
+<details><summary> SPIN iter 2 </summary><hr>
+
+- `generate_iter_spin.py`
+
+    Regenerates the "generated" responses from the model in the previous iteration:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_bottom" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_bottom_generated" \
+        --model-name "plaguss/zephyr-7b-spin-iter1-bottom-v0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+    Dataset: [argilla/10k_prompts_bottom_SPIN_iter1_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter1_generated)
+
+- `transform_iter_generated.py`
+
+    The script transforms the generated responses to the format expected by SPIN trainer:
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_bottom_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_bottom"
+    ```
+
+</details>
+
+<details><summary> SPIN iter 3 </summary><hr>
+
+- `generate_iter_spin.py`
+
+    Regenerates the "generated" responses from the model in the previous iteration:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_bottom" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_bottom_generated" \
+        --model-name "plaguss/zephyr-7b-spin-iter2-bottom-v0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+    Dataset: [argilla/10k_prompts_bottom_SPIN_iter1_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter1_generated)
+
+- `transform_iter_generated.py`
+
+    The script transforms the generated responses to the format expected by SPIN trainer:
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_bottom_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_bottom"
+    ```
+
+</details>
+
 ## Fine tune using SPIN
 
 The following steps are almost a copy from the [SPIN](https://github.com/uclaml/SPIN) repository, take a look there for more information.
@@ -211,6 +347,8 @@ bash scripts/finetune.sh
 
 ### Weights and Biases runs
 
+<details><summary> DIBT 10k *Top* subset </summary><hr>
+
 - [argilla-io/dibt-top-spin-iter0-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/439olh1m?nw=nwuserplagussargilla)
 
 - [argilla-io/dibt-top-spin-iter1-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/q938reyu?nw=nwuserplagussargilla)
@@ -218,3 +356,17 @@ bash scripts/finetune.sh
 - [argilla-io/dibt-top-spin-iter2-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/q40amnp0?nw=nwuserplagussargilla)
 
 - [argilla-io/dibt-top-spin-iter3-zephyr](https://wandb.ai/argilla-io/dibt-spin-zephyr/runs/u8znanpw?nw=nwuserplagussargilla)
+
+</details>
+
+<details><summary> DIBT 10k *Bottom* subset </summary><hr>
+
+- [argilla-io/dibt-zephyr-7b-spin-iter0-bottom-v0](https://wandb.ai/argilla-io/dibt-spin-zephyr-bottom/runs/n9m0h7zq?nw=nwuserplagussargilla)
+
+- [argilla-io/dibt-zephyr-7b-spin-iter1-bottom-v0](https://wandb.ai/argilla-io/dibt-spin-zephyr-bottom/runs/oj40r2bk?workspace=user-plaguss-argilla)
+
+- [argilla-io/dibt-zephyr-7b-spin-iter2-bottom-v0](https://wandb.ai/argilla-io/dibt-spin-zephyr-bottom/runs/mjnmml88?nw=nwuserplagussargilla)
+
+- [argilla-io/dibt-zephyr-7b-spin-iter3-bottom-v0](https://wandb.ai/argilla-io/dibt-spin-zephyr-bottom/runs/dgdm34mo?nw=nwuserplagussargilla)
+
+</details>
