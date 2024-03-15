@@ -130,7 +130,6 @@ if __name__ == "__main__":
     import os
 
     from distilabel.pipeline import Pipeline
-    from distilabel.llm import OpenAILLM
     from datasets import load_dataset, concatenate_datasets
     from distilabel.dataset import DatasetCheckpoint
 
@@ -141,7 +140,7 @@ if __name__ == "__main__":
     OPENAI_API_TOKEN = os.getenv("OPENAI_API_TOKEN")
     HF_API_TOKEN = os.getenv("HF_API_TOKEN")
     # DATASET_CONFIGURAITON = "DIBT/10k_prompts_ranked"
-    MAX_ROWS = 10_000
+    MAX_ROWS = 16
     MIN_NUM_RESPONSES = 1
     NEW_DATASET_NAME = "burtenshaw/DIBT_prompts_ranked_synthetic_mistral_large"
     LABELLER = "mistral-large"
@@ -152,33 +151,27 @@ if __name__ == "__main__":
         lambda x: int(x["num_responses"]) >= MIN_NUM_RESPONSES, keep_in_memory=True
     )
     dataset = dataset.remove_columns("generations")
-
+    dataset = dataset.select(range(MAX_ROWS))
     checkpoint_strategy = DatasetCheckpoint(
+        path=f"ckpt/{LABELLER}"
         strategy="disk",
         save_frequency=100,
     )
     task = PromptEvaluationTask.for_overall_quality()
-    if LABELLER == "GPT-4":
-        llm = OpenAILLM(
-            model="gpt-4-1106-preview",  # gpt-4 turbo
-            task=task,
-            max_new_tokens=512,
-            num_threads=8,
-            api_key=OPENAI_API_TOKEN,
-            temperature=0.3,
-        )
-    elif LABELLER == "mistral-large":
-        from distilabel.llm import MistralAILLM
 
-        llm = MistralAILLM(
-            model="mistral-large-latest",
-            task=task,
-            api_key=os.environ.get("MISTRALAI_API_KEY"),
-        )
+    from distilabel.llm import MistralAILLM
+
+    llm = MistralAILLM(
+        model=LABELLER,
+        task=task,
+        api_key=os.environ.get("MISTRALAI_API_KEY"),
+    )
+
     pipe = Pipeline(generator=llm)
+
     new_ds = pipe.generate(
         dataset,
-        num_generations=1,
+        num_generations=2,
         batch_size=16,
         checkpoint_strategy=checkpoint_strategy,
     )
