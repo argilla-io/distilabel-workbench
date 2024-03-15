@@ -65,6 +65,19 @@ if __name__ == "__main__":
         if "bottom" not in args.target_dataset:
             args.target_dataset += "_bottom"
 
+    elif args.portion == "random":
+        NUM_RECORDS_TOP = 1832
+        df_real = ds_real.to_pandas()
+
+        indices = df_real[
+            df_real["num_responses"] > 1
+        ].sample(NUM_RECORDS_TOP, random_state=42).index
+
+        ds_real = ds_real.select(indices)
+        ds_sft = ds_sft.select(indices)
+        if "random" not in args.target_dataset:
+            args.target_dataset += "_random"
+
     elif args.portion == "all":
         pass
 
