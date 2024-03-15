@@ -143,37 +143,39 @@ if __name__ == "__main__":
     # DATASET_CONFIGURAITON = "DIBT/10k_prompts_ranked"
     MAX_ROWS = 10_000
     MIN_NUM_RESPONSES = 1
-    NEW_DATASET_NAME = "argilla/DIBT_prompts_ranked_synthetic_n3_s1000"
+    NEW_DATASET_NAME = "burtenshaw/DIBT_prompts_ranked_synthetic_mistral_large"
+    LABELLER = "mistral-large"
 
-    latest_dataset = load_dataset(NEW_DATASET_NAME, split="train")
-    dataset = load_dataset("DIBT/10k_prompts_ranked", split="train").rename_column(
-        "prompt", "input"
-    )
+    dataset = load_dataset(NEW_DATASET_NAME, split="train")
+
     dataset = dataset.filter(
         lambda x: int(x["num_responses"]) >= MIN_NUM_RESPONSES, keep_in_memory=True
     )
-    dataset = dataset.select(range(MAX_ROWS))
+    dataset = dataset.remove_columns("generations")
+
     checkpoint_strategy = DatasetCheckpoint(
-        strategy="hf-hub",
-        extra_kwargs={
-            "repo_id": NEW_DATASET_NAME,
-            "token": HF_API_TOKEN,
-            "private": True,
-            "split": "train",
-        },
+        strategy="disk",
         save_frequency=100,
     )
-
-    pipe = Pipeline(
-        generator=OpenAILLM(
+    task = PromptEvaluationTask.for_overall_quality()
+    if LABELLER == "GPT-4":
+        llm = OpenAILLM(
             model="gpt-4-1106-preview",  # gpt-4 turbo
-            task=PromptEvaluationTask.for_overall_quality(),
+            task=task,
             max_new_tokens=512,
             num_threads=8,
             api_key=OPENAI_API_TOKEN,
             temperature=0.3,
         )
-    )
+    elif LABELLER == "mistral-large":
+        from distilabel.llm import MistralAILLM
+
+        llm = MistralAILLM(
+            model="mistral-large-latest",
+            task=task,
+            api_key=os.environ.get("MISTRALAI_API_KEY"),
+        )
+    pipe = Pipeline(generator=llm)
     new_ds = pipe.generate(
         dataset,
         num_generations=1,
@@ -181,10 +183,11 @@ if __name__ == "__main__":
         checkpoint_strategy=checkpoint_strategy,
     )
 
-    updated_dataset = load_dataset(NEW_DATASET_NAME, split="train")
-
-    updated_dataset = concatenate_datasets([updated_dataset, latest_dataset])
-
-    updated_dataset.push_to_hub(
-        NEW_DATASET_NAME, use_auth_token=HF_API_TOKEN, split="train"
+    dataset = load_dataset(NEW_DATASET_NAME, split="train")
+    dataset = dataset.filter(
+        lambda x: x["generation_model"] is not None, keep_in_memory=True
     )
+
+    updated_dataset = concatenate_datasets([new_ds, dataset])
+
+    updated_dataset.push_to_hub(NEW_DATASET_NAME, split="train")
