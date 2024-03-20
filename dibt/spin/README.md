@@ -285,6 +285,273 @@ The following are the steps to prepare the training data for SPIN, and the resul
 
 </details>
 
+### Experiment *random* prompts
+
+This contains the scripts to generate the same experiment from the *top* prompts, in this case selecting a subset of *random* prompts (we have selected for those responses that have `num_response>1` 1832 records).
+
+The following are the steps to prepare the training data for SPIN, and the resulting datasets:
+
+<details><summary> SPIN iter 0 </summary><hr>
+
+- `generate_iter_spin.py`
+    Script to generate the initial "generated" responses, from the SFT model that will then be fine-tuned 
+    (**if the previous experiment was run, this dataset should be already generated**).
+
+    Dataset: [argilla/10k_prompts_ranked_sft_zephyr](https://huggingface.co/datasets/argilla/10k_prompts_ranked_sft_zephyr)
+
+    Run the following:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "DIBT/10k_prompts_ranked" \
+        --new-dataset "argilla/10k_prompts_ranked_sft_zephyr" \
+        --model-name "alignment-handbook/zephyr-7b-sft-full" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+- `prepare_for_training.py`
+    Generates the dataset that will be directly ingested in the `SPINTrainer`.
+
+    Dataset: [argilla/10k_prompts_random_SPIN_iter0](https://huggingface.co/datasets/argilla/10k_prompts_random_SPIN_iter0)
+
+    Running the following python script: 
+
+    ```console
+    python prepare_for_training.py \
+        --portion random \
+        --target-dataset argilla/10k_prompts_SPIN_iter0_zephyr_random
+    ```
+
+</details>
+
+<details><summary> SPIN iter 1 </summary><hr>
+
+- `generate_iter_spin.py`
+
+    Regenerates the "generated" responses from the model in the previous iteration:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter0_zephyr_random" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_random_generated" \
+        --model-name "plaguss/zephyr-7b-spin-iter0-random-v0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+    Dataset: [argilla/10k_prompts_bottom_SPIN_iter1_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter1_generated)
+
+- `transform_iter_generated.py`
+
+    The script transforms the generated responses to the format expected by SPIN trainer:
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_random_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_random"
+    ```
+</details>
+
+<details><summary> SPIN iter 2 </summary><hr>
+
+- `generate_iter_spin.py`
+
+    Regenerates the "generated" responses from the model in the previous iteration:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter0_zephyr_random" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_random_generated" \
+        --model-name "plaguss/zephyr-7b-spin-iter2-random-v0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+    Dataset: [argilla/10k_prompts_bottom_SPIN_iter1_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter1_generated)
+
+- `transform_iter_generated.py`
+
+    The script transforms the generated responses to the format expected by SPIN trainer:
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_random_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_random"
+    ```
+</details>
+
+<details><summary> SPIN iter 3 </summary><hr>
+
+- `generate_iter_spin.py`
+
+    Regenerates the "generated" responses from the model in the previous iteration:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter0_zephyr_random" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_random_generated" \
+        --model-name "plaguss/zephyr-7b-spin-iter3-random-v0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+    Dataset: [argilla/10k_prompts_bottom_SPIN_iter1_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter1_generated)
+
+- `transform_iter_generated.py`
+
+    The script transforms the generated responses to the format expected by SPIN trainer:
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_random_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_random"
+    ```
+</details>
+
+### Experiment *top* subset, Mistral-SFT-7B
+
+<details><summary> SPIN iter 0 </summary><hr>
+
+- `generate_iter_spin.py`
+    Script to generate the initial "generated" responses, from the SFT model that will then be fine-tuned 
+
+    Dataset: [argilla/10k_prompts_ranked_mistral_sft](https://huggingface.co/datasets/argilla/10k_prompts_ranked_mistral_sft)
+
+    Run the following:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter0_zephyr_top" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter0_mistral_sft_top_generated" \
+        --model-name "HuggingFaceH4/mistral-7b-sft-beta" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+- `prepare_for_training.py`
+    Generates the dataset that will be directly ingested in the `SPINTrainer`.
+
+    Dataset: [argilla/10k_prompts_random_SPIN_iter0](https://huggingface.co/datasets/argilla/10k_prompts_random_SPIN_iter0)
+
+    Running the following python script: 
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter0_mistral_sft_top_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter0_mistral_sft_top"
+    ```
+
+</details>
+
+<details><summary> SPIN iter 1 </summary><hr>
+
+- `generate_iter_spin.py`
+
+    Regenerates the "generated" responses from the model in the previous iteration:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter0_zephyr_random" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_random_generated" \
+        --model-name "plaguss/zephyr-7b-spin-iter0-random-v0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+    Dataset: [argilla/10k_prompts_bottom_SPIN_iter1_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter1_generated)
+
+- `transform_iter_generated.py`
+
+    The script transforms the generated responses to the format expected by SPIN trainer:
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_random_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter1_zephyr_random"
+    ```
+</details>
+
+<details><summary> SPIN iter 2 </summary><hr>
+
+- `generate_iter_spin.py`
+
+    Regenerates the "generated" responses from the model in the previous iteration:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter0_zephyr_random" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_random_generated" \
+        --model-name "plaguss/zephyr-7b-spin-iter2-random-v0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+    Dataset: [argilla/10k_prompts_bottom_SPIN_iter1_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter1_generated)
+
+- `transform_iter_generated.py`
+
+    The script transforms the generated responses to the format expected by SPIN trainer:
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_random_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter2_zephyr_random"
+    ```
+</details>
+
+<details><summary> SPIN iter 3 </summary><hr>
+
+- `generate_iter_spin.py`
+
+    Regenerates the "generated" responses from the model in the previous iteration:
+
+    ```console
+    python generate_iter_spin.py \
+        --hf-apikey $HF_API_TOKEN \
+        --source-dataset "argilla/10k_prompts_SPIN_iter0_zephyr_random" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_random_generated" \
+        --model-name "plaguss/zephyr-7b-spin-iter3-random-v0" \
+        --batch-size 128 \
+        --cuda-devices "0,1"
+    ```
+
+    Dataset: [argilla/10k_prompts_bottom_SPIN_iter1_generated](https://huggingface.co/datasets/argilla/10k_prompts_top_SPIN_iter1_generated)
+
+- `transform_iter_generated.py`
+
+    The script transforms the generated responses to the format expected by SPIN trainer:
+
+    ```console
+    python transform_iter_generated.py \
+        --real-dataset "argilla/10k_prompts_ranked_with_responses" \
+        --generated-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_random_generated" \
+        --new-dataset "argilla/10k_prompts_SPIN_iter3_zephyr_random"
+    ```
+</details>
+
+
+### Experiment *top* subset, Phi-2
+
+From this point a single script is used instead. Run the `setup_full.sh` on a pod with 4 A100 80Gb GPUs, generate the different configuration files, and place the python script `generate_spin_dataset.py` under `SPIN/` folder once the repo has been downloaded, place `run_spin.sh` under `SPIN/scripts` folder, and run it:
+
+```console
+bash scripts/run_spin.sh
+```
+
 ## Fine tune using SPIN
 
 The following steps are almost a copy from the [SPIN](https://github.com/uclaml/SPIN) repository, take a look there for more information.
@@ -336,7 +603,7 @@ And update the WANDB variables to keep track of the experiments:
 ```console
 export WANDB_ENTITY="argilla-io"
 export WANDB_PROJECT="dibt-spin-zephyr"
-export WANDB_NAME="zephyr-7b-spin-iter0-v0"
+export WANDB_NAME="zephyr-7b-spin-iter1-v0"
 ```
 
 After the previous step, replace the config file of the model to run, and the `finetune.sh` script, and start the training process:
