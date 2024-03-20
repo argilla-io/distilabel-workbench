@@ -3,7 +3,7 @@ Script to generate the initial SPIN iter0 dataset for DIBT 10K ranked.
 
 """
 
-from datasets import load_dataset, concatenate_datasets, Dataset
+from datasets import load_dataset, Dataset
 
 def prepare_for_spin(example):
     return {
