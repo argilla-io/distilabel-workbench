@@ -548,6 +548,11 @@ The following are the steps to prepare the training data for SPIN, and the resul
 
 From this point a single script is used instead. Run the `setup_full.sh` on a pod with 4 A100 80Gb GPUs, generate the different configuration files, and place the python script `generate_spin_dataset.py` under `SPIN/` folder once the repo has been downloaded, place `run_spin.sh` under `SPIN/scripts` folder, and run it:
 
+### Experiment *top* subset, OpenHermes-2.5-Mistral-7B
+
+From this point a single script is used instead. Run the `setup_full.sh` on a pod with 4 A100 80Gb GPUs, generate the different configuration files, and place the python script `generate_spin_dataset.py` under `SPIN/` folder once the repo has been downloaded, place `run_spin_openhermes.sh` under `SPIN/scripts` folder, and run it:
+
+
 ```console
 bash scripts/run_spin.sh
 ```
