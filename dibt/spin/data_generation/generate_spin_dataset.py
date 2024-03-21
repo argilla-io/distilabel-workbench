@@ -73,6 +73,7 @@ def load_llm(task: Task, cuda_visible_devices: str = "0", model_name: str = "tek
         task=task,
         prompt_format="chatml",
         max_new_tokens=2048,
+        top_p=0.95,
         temperature=1,
     )
 

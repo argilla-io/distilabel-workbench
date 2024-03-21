@@ -5,36 +5,36 @@ export CUDA_VISIBLE_DEVICES="0,1,2,3"
 ACCELERATE_LOG_LEVEL=info
 export WANDB_ENTITY="argilla-io"
 # Update the project name to the one you will use
-export WANDB_PROJECT="dibt-spin-mistral-sft"
+export WANDB_PROJECT="dibt-spin-openhermes-2.5"
 
 # The following are the config files for the different models to train,
 # these must be already defined and in the configs/ folder from the SPIN repo
 config_files=(
-    "configs/config_iter0_small.yaml"
-    "configs/config_iter1_small.yaml"
-    "configs/config_iter2_small.yaml"
-    "configs/config_iter3_small.yaml"
+    "configs/config_iter0.yaml"
+    "configs/config_iter1.yaml"
+    "configs/config_iter2.yaml"
+    "configs/config_iter3.yaml"
 )
 # The model from which you want to start the SPIN iterations,
 # will be used for the first dataset generation and fine tune.
-initial_model="microsoft/phi-2"
+initial_model="teknium/OpenHermes-2.5-Mistral-7B"
 # Base model name for the different SPIN iterations, the models will be named as:
 # - base_model_name{_iter{i}}
-base_model_name="plaguss/phi-2-spin-top-v0"
+base_model_name="plaguss/openhermes-2.5-spin-v0"
 # The dataset that will be used in the first iteration to generate the responses.
 # It must contain a column with the name "prompt" from which the responses
 # will be generated
 initial_dataset="argilla/10k_prompts_SPIN_iter0_zephyr_top"
 # Base model name for the different dataset SPIN iterations, the datasets will be named as:
 # - base_dataset_name{_iter{i}}
-base_dataset_name="argilla/10k_prompts_SPIN_phi2_top"
+base_dataset_name="argilla/10k_prompts_SPIN_openhermes_2.5_top"
 # The dataset from which the subsequent generations will be obtained, will
 # be a copy of base_dataset_name, and will update iteratively
 source_dataset_base=base_dataset_name
 # The dataset containing the reference responses
 real_dataset="argilla/10k_prompts_ranked_with_responses"
 # The base name for the WANDB experiments, under WANDB_PROJECT
-wandb_name_base="spin-phi2"
+wandb_name_base="spin-openhermes-2.5"
 
 for ((i = 0; i < ${#config_files[@]}; i++)); do
     if [ "$i" = "0" ]; then
