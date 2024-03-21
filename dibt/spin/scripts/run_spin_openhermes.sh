@@ -30,7 +30,7 @@ initial_dataset="argilla/10k_prompts_SPIN_iter0_zephyr_top"
 base_dataset_name="argilla/10k_prompts_SPIN_openhermes_2.5_top"
 # The dataset from which the subsequent generations will be obtained, will
 # be a copy of base_dataset_name, and will update iteratively
-source_dataset_base=base_dataset_name
+source_dataset_base="${base_dataset_name}"
 # The dataset containing the reference responses
 real_dataset="argilla/10k_prompts_ranked_with_responses"
 # The base name for the WANDB experiments, under WANDB_PROJECT
@@ -43,16 +43,16 @@ for ((i = 0; i < ${#config_files[@]}; i++)); do
         source_dataset="${initial_dataset}"
     else
         # Model updated on each iteration
-        model_name_for_generation="${base_model_name}_iter${i-1}"
-        source_dataset="${source_dataset_base}_iter${i-1}"
+        model_name_for_generation="${base_model_name}-iter$((i-1))"
+        source_dataset="${source_dataset_base}_iter$((i-1))"
     fi
 
     new_dataset="${base_dataset_name}_iter$i"
     command_dataset_generation="python generate_spin_dataset.py \
         --hf-apikey $HF_API_TOKEN \
-        --source-dataset ${source_dataset} \
-        --new-dataset ${new_dataset} \
-        --real-dataset ${real_dataset} \
+        --source-dataset $source_dataset \
+        --new-dataset $new_dataset \
+        --real-dataset $real_dataset \
         --model-name $model_name_for_generation \
         --batch-size 512 \
         --cuda-devices '0,1,2,3'"
