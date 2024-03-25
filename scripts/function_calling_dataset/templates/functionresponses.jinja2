@@ -1,0 +1,31 @@
+## Function calling task
+
+### Instructions
+Instructions to follow with a function call:
+
+{%- for instruction in instructions %}
+{{ instruction }}
+{%- endfor %}
+
+### Functions
+Functions that are available to use.
+
+```json
+{{ function }}
+```
+
+### Schema
+The schema for you to call the function call with:
+
+```json
+{{ schema }}
+```
+
+### Examples
+Examples of how high quality function calls:
+
+{%- for example in examples %}
+```json
+{{ example }}
+```
+{%- endfor %}

@@ -1,15 +1,40 @@
-name: dataset-6e09efb3-6f77-4422-949c-0c2b047cd17a
-functions:
-  max_inputs: 20
-  num_generations: 2
-  batch_size: 10
-instructions:
-  num_generations: 10
-  batch_size: 10
-reponses:
-  num_generations: 2
-  batch_size: 10
-feedback:
-  max_inputs: 100
-  num_generations: 2
-  batch_size: 10
+name: fml-generation-1
+save_frequency: 50
+data:
+  input:
+    # repo_id: burtenshaw/function_calling_dataset
+    generated: /workspace/distilabel-workbench/scripts/function_calling_dataset/data/fml-generation-1/2024-03-01-14-48-53/checkpoints/benchmark_generate
+  output:
+    argilla: fml-generation
+generation:
+  functions:
+    max_inputs: 20
+    num_generations: 15
+    batch_size: 10
+  instructions:
+    num_generations: 120
+    batch_size: 10
+  responses:
+    num_generations: 5
+    batch_size: 10
+  feedback:
+    num_generations: 1
+    batch_size: 3
+expansion:
+  # non_calls:
+  #   num_generations: 2
+  #   batch_size: 5
+  distractors:
+    max_distractors: 3
+  # feedback:
+  #   num_generations: 2
+  #   batch_size: 10
+benchmark:
+  generate:
+    num_generations: 2
+    batch_size: 20
+  feedback:
+    num_generations: 2
+    batch_size: 20
+
+  

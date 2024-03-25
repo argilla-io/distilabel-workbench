@@ -1,0 +1,32 @@
+{{ task_description }}
+{%- for rating in ratings %}
+{{ rating.value }}. {{ rating.description }}
+{%- endfor %}
+
+---
+
+## Format
+
+### Input
+Available Function: [Specify the function that may be used by the assistant]
+{% for index in range(responses|length * instructions|length) %}
+Instruction {{index+1}} : [Specify task goal and restrictions]
+Response {{index+1}}: [Specify the response to the task with a function call]
+{%- endfor %}
+### Output
+{% for index in range(responses|length * instructions|length) %}
+#### Output for Text {{ index + 1}}
+Rating: [Rating for text {{ index + 1}}]
+Rationale: [Rationale for the rating in short sentences]
+{%- endfor %}
+---
+## Annotation
+
+### Input
+
+Available Function: {{ function }}
+{% for _responses in responses %}{% for index in range(_responses|length) %}
+Instruction {{ index + 1 }}: {{ instructions[index] }}
+Response {{ index + 1 }}: {{ _responses[index] }}
+{% endfor %}{% endfor %}
+### Output 

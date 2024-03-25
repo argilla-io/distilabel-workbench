@@ -2,8 +2,17 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
-from distilabel.dataset import DatasetCheckpoint, Dataset
 import yaml
+from distilabel.dataset import DatasetCheckpoint, Dataset
+from pandas import concat
+
+
+def concatenate_datasets(datasets):
+    datasets = [ds.to_pandas() for ds in datasets]
+    df = concat(datasets)
+    df = df.loc[:, ~df.columns.str.contains("_index_")]
+    dataset = Dataset.from_pandas(df)
+    return dataset
 
 
 def load_wrapped_dataset(dataset_path: str, unwrap: callable = lambda x: x):
@@ -12,10 +21,16 @@ def load_wrapped_dataset(dataset_path: str, unwrap: callable = lambda x: x):
     return functions_dataset
 
 
-def setup_checkpoint_strategy(data_dir: str, checkpoint_name: str):
+def save_dataset(dataset, name: str, config: dict):
+    data_dir = config.get("data_dir", "ckpt")
+    path = Path(data_dir) / "checkpoints" / name
+    dataset.save_to_disk(path)
+
+
+def setup_checkpoint_strategy(config: dict, checkpoint_name: str):
+    data_dir = config.get("data_dir", "ckpt")
     path = Path(data_dir) / "checkpoints" / checkpoint_name
-    config_path = Path(data_dir) / "config.yaml"
-    save_frequency = load_config(str(config_path)).get("save_frequency", -1)
+    save_frequency = config.get("save_frequency", -1)
     checkpoint_strategy = DatasetCheckpoint(
         path=path,
         save_frequency=save_frequency,
@@ -23,16 +38,16 @@ def setup_checkpoint_strategy(data_dir: str, checkpoint_name: str):
     return checkpoint_strategy
 
 
-def setup_run(config_path: str):
+def setup_pipeline_run(config_path: str):
     config = load_config(config_path)
     dataset_name = config.get("name", f"function-calling-dataset-{uuid4()}")
     data_dir = (
         Path("data") / dataset_name / datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     )
-    data_dir.mkdir(exist_ok=True)
+    data_dir.mkdir(exist_ok=True, parents=True)
     config["data_dir"] = str(data_dir)
     dump_config(config, data_dir / "config.yaml")
-    return data_dir, dataset_name, config
+    return config
 
 
 def dump_config(config, config_path: str):
