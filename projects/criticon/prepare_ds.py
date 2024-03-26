@@ -1,23 +1,18 @@
 from datasets import load_dataset
 from typing import Dict, Any
-from transformers import PreTrainedTokenizer, AutoTokenizer
 
 dataset_name = "argilla/ultrafeedback-critique"
-#model_name = "mistralai/Mistral-7B-v0.1"
-# The model we want the chat template from
-model_name = "teknium/OpenHermes-2.5-Mistral-7B"
 local_path = "uf-critique/uf-critique.jsonl"
 
-PUSH_TO_HUB = True
+system_prompt = "You are a critical teacher that provides specific, concise and constructive feedback in plain language, avoid giving me the reference response."
 
-print("Loading dataset")
-uf_critique = load_dataset(dataset_name, split="train[:100]")
+critique_instruction_template = """I need you to give me a score between 1 and 10, where 1 is the worst and 10 is the best, and a critique to show the reason for such a score.
 
-print("Applying prompt template")
-
-system_prompt = "User: A one-turn chat between a curious user and an artificial intelligence critique assistant."
-
-critique_instruction_template = """You are a critical teacher that provides specific, concise and constructive feedback for me in plain language, avoid giving me the reference response.
+These are the criteria to take into account:
+1. **Correctness & Informativeness**: Does the output provide accurate and helpful information?
+2. **Honesty & Uncertainty**: How confidently does the model convey its information, and does it express uncertainty appropriately?
+3. **Truthfulness & Hallucination**: Does the model introduce misleading or fabricated details?
+4. **Instruction Following**: Does the model's output align with given instructions and the user's intent?
 
 Consider how good the response follows the instruction:
 
@@ -33,11 +28,7 @@ score_given_template = """<score>{score}</score>
 <critique>{critique}</critique>"""
 
 
-def prepare_for_sft(
-    example: Dict[str, Any]
-    #, tokenizer: PreTrainedTokenizer
-) -> Dict[str, Any]:
-    # example["messages"] = tokenizer.apply_chat_template(
+def prepare_for_sft(example: Dict[str, Any]) -> Dict[str, Any]:
     example["messages"] = [
         {
             "role": "system",
@@ -60,27 +51,45 @@ def prepare_for_sft(
     ]
     return example
 
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-tokenizer.chat_template
-column_names = list(uf_critique.column_names)
 
-uf_critique = uf_critique.map(
-    prepare_for_sft,
-    # fn_kwargs={"tokenizer": tokenizer},
-    num_proc=4,
-    remove_columns=column_names,
-    desc="Formatting responses with prompt template",
-)
+if __name__ == "__main__":
+    import argparse
 
-print(f"Saving to file dataset: {local_path}")
-uf_critique.to_json(local_path)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset-name", type=str, default=None, help="The name of the base dataset")
+    parser.add_argument("--limit", type=int, default=-1, help="Number of rows to generate, defaults to -1 which generates the whole dataset")
+    parser.add_argument("--new-name", type=str, default="distilabel-internal-testing/ultrafeedback-critique-sft", help="Name of the new dataset.")
+    parser.add_argument("--push-to-hub", type=bool)
 
-data_files = {"train": local_path}
+    args = parser.parse_args()
 
-uf_critique = load_dataset("json", data_files=data_files, split="train")
-print("File loaded correctly")
+    PUSH_TO_HUB = True
 
-if PUSH_TO_HUB:
-    print("Pushing to hub")
-    uf_critique = uf_critique.train_test_split(test_size=0.1, seed=42, shuffle=True)
-    uf_critique.push_to_hub(repo_id="plaguss/uf-critique-test", private=True)
+    split_name = "train"
+    if args.limit > -1:
+        split_name += f"[:{args.limit}]"
+
+    print("Loading dataset")
+    uf_critique = load_dataset(args.dataset_name, split=split_name)
+
+    column_names = list(uf_critique.column_names)
+
+    uf_critique = uf_critique.map(
+        prepare_for_sft,
+        num_proc=4,
+        remove_columns=column_names,
+        desc="Formatting responses with prompt template",
+    )
+
+    if args.push_to_hub:
+        print("Pushing to hub")
+        uf_critique = uf_critique.train_test_split(test_size=0.1, seed=42, shuffle=True)
+        uf_critique.push_to_hub(repo_id=args.new_name, private=True)
+    else:
+        print(f"Saving dataset to file: {local_path}")
+        uf_critique.to_json(local_path)
+
+        data_files = {"train": local_path}
+
+        uf_critique = load_dataset("json", data_files=data_files, split="train")
+        print("File loaded correctly")
