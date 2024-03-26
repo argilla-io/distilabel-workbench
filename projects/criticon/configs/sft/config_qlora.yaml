@@ -1,0 +1,72 @@
+dataset_args:
+#  path: argilla/ultrafeedback-critique
+  path: plaguss/uf-critique-test
+
+format_args:
+  prompt_format: chatml
+
+model_args:
+  pretrained_model_name_or_path: mistralai/Mistral-7B-v0.1
+  torch_dtype: bfloat16
+  quantization_config:
+    quant_method: bitsandbytes
+    load_in_4bit: true
+
+# LoRA arguments
+peft_config:
+  r: 16
+  lora_alpha: 16
+  lora_dropout: 0.05
+  bias: none
+  task_type: CAUSAL_LM
+  target_modules:
+    - k_proj
+    - gate_proj
+    - v_proj
+    - up_proj
+    - q_proj
+    - o_proj
+    - down_proj
+
+wandb_args:
+  entity: argilla-io
+  project: criticon
+  name: criticon-qlora-v0.0
+
+training_args:
+  # `trl.SFTTrainer`
+  max_seq_length: 2048
+  # `transformers.Trainer`
+  bf16: true
+  do_eval: true
+  do_train: true
+  evaluation_strategy: steps
+  eval_steps: 100
+  gradient_accumulation_steps: 4
+  gradient_checkpointing: true
+  hub_model_id: argilla/criticon-adapter-v0.0
+  hub_model_revision: v1.0
+  hub_strategy: every_save
+  hub_private_repo: true
+  push_to_hub: true
+  learning_rate: 2.0e-04
+  logging_steps: 10
+  lr_scheduler_type: cosine
+  num_train_epochs: 1
+  optim: paged_adamw_32bit
+  output_dir: data/
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 4
+  save_strategy: steps
+  save_steps: 500
+  save_total_limit: null
+  load_best_model_at_end: true
+  # metric_for_best_model: rewards/accuracies
+  # greater_is_better: true
+  seed: 42
+  warmup_ratio: 0.1
+  report_to:
+    - wandb
+
+use_accelerate: false
+use_unsloth: false
