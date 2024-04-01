@@ -2,6 +2,7 @@ from datasets import load_dataset
 from typing import Dict, Any
 
 dataset_name = "argilla/ultrafeedback-critique"
+new_name = "distilabel-internal-testing/ultrafeedback-critique-sft"
 local_path = "uf-critique/uf-critique.jsonl"
 
 system_prompt = "You are a critical teacher that provides specific, concise and constructive feedback in plain language, avoid giving me the reference response."
@@ -56,10 +57,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset-name", type=str, default=None, help="The name of the base dataset")
+    parser.add_argument("--dataset-name", type=str, default=dataset_name, help="The name of the base dataset")
     parser.add_argument("--limit", type=int, default=-1, help="Number of rows to generate, defaults to -1 which generates the whole dataset")
-    parser.add_argument("--new-name", type=str, default="distilabel-internal-testing/ultrafeedback-critique-sft", help="Name of the new dataset.")
-    parser.add_argument("--push-to-hub", type=bool)
+    parser.add_argument("--new-name", type=str, default=new_name, help="Name of the new dataset.")
+    parser.add_argument("--push-to-hub", action=argparse.BooleanOptionalAction)
 
     args = parser.parse_args()
 
@@ -76,7 +77,7 @@ if __name__ == "__main__":
 
     uf_critique = uf_critique.map(
         prepare_for_sft,
-        num_proc=4,
+        num_proc=8,
         remove_columns=column_names,
         desc="Formatting responses with prompt template",
     )

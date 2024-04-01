@@ -9,6 +9,10 @@ This project contains the work to get `argilla/criticon-v0.1` critique model.
 
 - [`configs`](./configs/) contains the configuration files for training.
 
+    - `config_qlora.yaml`: *For testing*, a fine tune config file to check it works as expected.
+
+    - `config_full.yaml`: Config file for the full SFT fine tuning.
+
 - [`prepare_ds.py`](./prepare_ds.py) prepares the training script to fine tune a model using SFT.
 
 ## Prompt

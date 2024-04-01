@@ -1,0 +1,53 @@
+dataset_args:
+#  path: argilla/ultrafeedback-critique
+  path: distilabel-internal-testing/uf-critique-sft
+
+format_args:
+  prompt_format: chatml
+
+model_args:
+  pretrained_model_name_or_path: mistralai/Mistral-7B-v0.1
+  torch_dtype: bfloat16
+
+wandb_args:
+  entity: argilla-io
+  project: criticon
+  name: criticon-sft-full-v0.0
+
+training_args:
+  # `trl.SFTTrainer`
+  max_seq_length: 2048
+  # `transformers.Trainer`
+  bf16: true
+  do_eval: true
+  do_train: true
+  evaluation_strategy: steps
+  eval_steps: 50
+  gradient_accumulation_steps: 1
+  gradient_checkpointing: true
+  hub_model_id: distilabel-internal-testing/criticon-sft-v0.0
+  hub_model_revision: v1.0
+  hub_strategy: every_save
+  hub_private_repo: true
+  push_to_hub: true
+  learning_rate: 2.0e-05
+  logging_steps: 5
+  lr_scheduler_type: cosine
+  num_train_epochs: 1
+  optim: adamw_torch
+  output_dir: data/criticon
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 16
+  save_strategy: steps
+  save_steps: 500
+  save_total_limit: null
+  load_best_model_at_end: true
+  # metric_for_best_model: rewards/accuracies
+  # greater_is_better: true
+  seed: 42
+  warmup_ratio: 0.1
+  report_to:
+    - wandb
+
+use_accelerate: true
+use_unsloth: false
