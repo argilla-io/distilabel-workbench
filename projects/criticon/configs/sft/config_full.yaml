@@ -1,5 +1,4 @@
 dataset_args:
-#  path: argilla/ultrafeedback-critique
   path: distilabel-internal-testing/ultrafeedback-critique-sft
 
 format_args:
@@ -12,7 +11,7 @@ model_args:
 wandb_args:
   entity: argilla-io
   project: criticon
-  name: criticon-sft-full-v0.0
+  name: criticon-sft-full-v0.0-2epochs
 
 training_args:
   # `trl.SFTTrainer`
@@ -22,8 +21,8 @@ training_args:
   do_eval: true
   do_train: true
   evaluation_strategy: steps
-  eval_steps: 100
-  gradient_accumulation_steps: 1
+  eval_steps: 500
+  gradient_accumulation_steps: 2
   gradient_checkpointing: true
   hub_model_id: distilabel-internal-testing/criticon-sft-v0.0
   hub_model_revision: v1.0
@@ -31,19 +30,16 @@ training_args:
   hub_private_repo: true
   push_to_hub: true
   learning_rate: 2.0e-05
-  logging_steps: 5
+  logging_steps: 10
   lr_scheduler_type: cosine
-  num_train_epochs: 1
+  num_train_epochs: 2
   optim: adamw_torch
   output_dir: data/criticon
   per_device_train_batch_size: 8
-  per_device_eval_batch_size: 16
-  save_strategy: steps
-  save_steps: 500
+  per_device_eval_batch_size: 8
+  save_strategy: epoch
   save_total_limit: null
-  load_best_model_at_end: true
-  # metric_for_best_model: rewards/accuracies
-  # greater_is_better: true
+#  load_best_model_at_end: true
   seed: 42
   warmup_ratio: 0.1
   report_to:

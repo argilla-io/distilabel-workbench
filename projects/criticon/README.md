@@ -58,3 +58,7 @@ Run the following script after placing a folder with the config file:
 ```console
 bash finetune.sh
 ```
+
+## WandB Runs
+
+- [SFT-full](https://wandb.ai/argilla-io/criticon/runs/hipx7im9?nw=nwuserplagussargilla)
