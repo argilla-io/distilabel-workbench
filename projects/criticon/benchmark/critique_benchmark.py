@@ -7,8 +7,7 @@ from typing import Any, Dict, TYPE_CHECKING, List, TypedDict
 import re
 
 from datasets import load_dataset
-# from distilabel.steps.generators.huggingface import LoadHubDataset
-from distilabel.steps.generators.data import LoadDataFromDicts
+from distilabel.steps.generators.huggingface import LoadHubDataset
 from distilabel.pipeline import Pipeline
 from distilabel.llms.mistral import MistralLLM
 from distilabel.steps.tasks.text_generation import TextGeneration
@@ -18,6 +17,13 @@ if TYPE_CHECKING:
 
 
 CRITICON_TEMPLATE = """I need you to give me a score between 1 and 10, where 1 is the worst and 10 is the best, and a critique to show the reason for such a score.
+
+**Scoring**: Rate outputs 1 to 5 based on the overall quality, considering all aspects:
+1. **Low Quality**: Contains inaccuracies, may be entirely wrong or has severe hallucinations.
+3. **Moderate Quality**: Addresses some aspects, but has errors or is partially aligned with instructions.
+5. **Good**: Generally accurate but may contain minor errors or slight deviations.
+7. **Very Good**: Near perfect, with minor issues in terms of alignment or confidence.
+10. **Excellent**: Accurate, confident, aligned with instructions, and free of hallucinations.
 
 These are the criteria to take into account:
 1. **Correctness & Informativeness**: Does the output provide accurate and helpful information?
@@ -67,36 +73,38 @@ class Criticon(TextGeneration):
 if __name__ == "__main__":
 
     with Pipeline(name="benchmark-critique") as pipeline:
-        ds = load_dataset("allenai/reward-bench", split="train")
-
-        # Hacky way of just getting a small amount of data for testing        
-        data = [
-            row for row in ds.filter(lambda x: x["subset"] == "mt-bench-easy").select(range(2))
-        ]
-        dataset = LoadDataFromDicts(
-            name="dataset",
-            data=data,
+        dataset = LoadHubDataset(
+            name="load_dataset",
+            batch_size=8,
         )
         critique_task = Criticon(
             name="criticon",
             llm=MistralLLM(
                 model="mistral-medium",
                 api_key=os.getenv("MISTRALAI_API_KEY"),  # type: ignore
-            ), # TODO: update to use the correct LLM
-            input_mappings={"instruction": "prompt", "response": "chosen"},
+            ),
+            input_mappings={"instruction": "prompt", "response": "response"},
+            input_batch_size=8
         )
 
         dataset.connect(critique_task)
 
         distiset = pipeline.run(
             parameters={
+                "load_dataset": {
+                    "repo_id": "distilabel-internal-testing/reward-bench-critique-alpacaeval-easy",
+                    "split": "train",
+                    "token": os.getenv("HF_API_TOKEN"),
+                },
                 "criticon": {
                     "generation_kwargs": {
-                        "max_length": 512, "temperature": 0.7
+                        "max_length": 512, "temperature": 1.0, "top_p": 0.95
                     },
                 }
             }
         )
-        print("EXAMPLE: ")
-        import json
-        print(json.dumps(distiset["criticon"]["train"].select_columns(["score", "critique"])[:], indent=2))
+        distiset.push_to_hub(
+            repo_id="distilabel-internal-testing/reward-bench-critique-alpacaeval-easy-labeled-v0.2",
+            private=True,
+            token=os.getenv("HF_API_TOKEN"),
+        )
