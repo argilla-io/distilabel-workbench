@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 CRITICON_TEMPLATE = """I need you to give me a score between 1 and 10, where 1 is the worst and 10 is the best, and a critique to show the reason for such a score.
 
-**Scoring**: Rate outputs 1 to 5 based on the overall quality, considering all aspects:
+**Scoring**: These values represent the overall quality, consider all aspects:
 1. **Low Quality**: Contains inaccuracies, may be entirely wrong or has severe hallucinations.
 3. **Moderate Quality**: Addresses some aspects, but has errors or is partially aligned with instructions.
 5. **Good**: Generally accurate but may contain minor errors or slight deviations.
