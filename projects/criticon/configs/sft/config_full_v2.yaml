@@ -1,0 +1,49 @@
+dataset_args:
+  path: distilabel-internal-testing/ultrafeedback-critique-sft-v0.1
+
+format_args:
+  prompt_format: chatml
+
+model_args:
+  pretrained_model_name_or_path: teknium/OpenHermes-2.5-Mistral-7B
+  torch_dtype: bfloat16
+
+wandb_args:
+  entity: argilla-io
+  project: criticon
+  name: criticon-sft-full-v0.1
+
+training_args:
+  # `trl.SFTTrainer`
+  max_seq_length: 2048
+  # `transformers.Trainer`
+  bf16: true
+  do_eval: true
+  do_train: true
+  evaluation_strategy: steps
+  eval_steps: 500
+  gradient_accumulation_steps: 2
+  gradient_checkpointing: true
+  hub_model_id: distilabel-internal-testing/criticon-sft-v0.1
+  hub_model_revision: v1.0
+  hub_strategy: every_save
+  hub_private_repo: true
+  push_to_hub: true
+  learning_rate: 5.0e-06
+  logging_steps: 10
+  lr_scheduler_type: cosine
+  num_train_epochs: 2
+  optim: paged_adamw_32bit
+  output_dir: data/criticon
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  save_strategy: epoch
+  save_total_limit: null
+#  load_best_model_at_end: true
+  seed: 42
+  warmup_ratio: 0.1
+  report_to:
+    - wandb
+
+use_accelerate: true
+use_unsloth: false

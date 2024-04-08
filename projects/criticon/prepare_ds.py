@@ -1,35 +1,57 @@
+"""
+$ python prepare_ds.py \
+    --dataset-name "argilla/ultrafeedback-critique" \
+    --new-name "distilabel-internal-testing/ultrafeedback-critique-sft-v0.1" \
+    --round \
+    --push-to-hub
+
+"""
+
 from datasets import load_dataset
 from typing import Dict, Any
 
 dataset_name = "argilla/ultrafeedback-critique"
-new_name = "distilabel-internal-testing/ultrafeedback-critique-sft"
+new_name = "distilabel-internal-testing/ultrafeedback-critique-sft-v0.1"
 local_path = "uf-critique/uf-critique.jsonl"
 
-system_prompt = "You are a critical teacher that provides specific, concise and constructive feedback in plain language, avoid giving me the reference response."
+system_prompt = "You are a critical teacher that provides specific, concise and constructive feedback in plain language, together with your score."
 
-critique_instruction_template = """I need you to give me a score between 1 and 10, where 1 is the worst and 10 is the best, and a critique to show the reason for such a score.
+critique_instruction_template = """### Task description:
+You are given an instruction, a response to evaluate and the criteria for the feedback and score to take into account.
+- You must write the feedback according to the "Feedback criteria", not a general or abstract one.
+- After the feedback, write a score as an integer between 1 and 10, using the "Scoring system".
+- The output format MUST be: "(your feedback) [SCORE] (score between 1 and 10)".
 
-These are the criteria to take into account:
+### Feedback criteria:
 1. **Correctness & Informativeness**: Does the output provide accurate and helpful information?
 2. **Honesty & Uncertainty**: How confidently does the model convey its information, and does it express uncertainty appropriately?
 3. **Truthfulness & Hallucination**: Does the model introduce misleading or fabricated details?
 4. **Instruction Following**: Does the model's output align with given instructions and the user's intent?
 
-Consider how good the response follows the instruction:
+### Scoring system:
+1: **Low Quality**: Contains inaccuracies, may be entirely wrong or has severe hallucinations.
+3: **Moderate Quality**: Addresses some aspects, but has errors or is partially aligned with instructions.
+5: **Good**: Generally accurate but may contain minor errors or slight deviations.
+7: **Very Good**: Near perfect, with minor issues in terms of alignment or confidence.
+10: **Excellent**: Accurate, confident, aligned with instructions, and free of hallucinations.
 
-<instruction>{instruction}</instruction>
-<response>{response}</response>
+### Instruction:
+{instruction}
 
-Your answer must be in the following format:
+### Response:
+{response}
 
-<score>[1-10]</score>
-<critique>your critique</critique>"""
+### Feedback:
+"""
 
-score_given_template = """<score>{score}</score>
-<critique>{critique}</critique>"""
+score_given_template = """{critique} [SCORE] {score}"""
 
 
-def prepare_for_sft(example: Dict[str, Any]) -> Dict[str, Any]:
+def prepare_for_sft(example: Dict[str, Any], do_round: bool = False) -> Dict[str, Any]:
+    if do_round:
+        rounding = lambda x: round(float(x))
+    else:
+        rounding = lambda x: x
     example["messages"] = [
         {
             "role": "system",
@@ -45,7 +67,7 @@ def prepare_for_sft(example: Dict[str, Any]) -> Dict[str, Any]:
         {
             "role": "assistant",
             "content": score_given_template.format(
-                score=example["overall_score"],
+                score=rounding(example["overall_score"]),
                 critique=example["critique"]
             )
         },
@@ -60,11 +82,19 @@ if __name__ == "__main__":
     parser.add_argument("--dataset-name", type=str, default=dataset_name, help="The name of the base dataset")
     parser.add_argument("--limit", type=int, default=-1, help="Number of rows to generate, defaults to -1 which generates the whole dataset")
     parser.add_argument("--new-name", type=str, default=new_name, help="Name of the new dataset.")
+    parser.add_argument(
+        "--round",
+        action=argparse.BooleanOptionalAction,
+        help="Whether to round the original scores to work only with integers."
+    )
+    parser.add_argument(
+        "--rescale",
+        action=argparse.BooleanOptionalAction,
+        help="Whether to rescale the scores to be in the range 1-5, or let them 1-10."
+    )
     parser.add_argument("--push-to-hub", action=argparse.BooleanOptionalAction)
 
     args = parser.parse_args()
-
-    PUSH_TO_HUB = True
 
     split_name = "train"
     if args.limit > -1:
@@ -72,6 +102,13 @@ if __name__ == "__main__":
 
     print("Loading dataset")
     uf_critique = load_dataset(args.dataset_name, split=split_name)
+
+    if args.round:
+        import functools
+        prepare_for_sft = functools.partial(prepare_for_sft, do_round=True)
+        
+    else:
+        pass
 
     column_names = list(uf_critique.column_names)
 
