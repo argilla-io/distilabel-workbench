@@ -1,20 +1,17 @@
-"""
-pip install mistralai
-"""
 
 import os
 from typing import Any, Dict, TYPE_CHECKING, List, TypedDict, Optional
-import re
 
-from datasets import load_dataset
 from distilabel.steps.generators.huggingface import LoadHubDataset
 from distilabel.pipeline import Pipeline
-from distilabel.llms.mistral import MistralLLM
+from distilabel.llms.openai import OpenAILLM
 from distilabel.steps.tasks.text_generation import TextGeneration
 
 if TYPE_CHECKING:
     from distilabel.steps.tasks.typing import ChatType
 
+
+system_prompt = "You are a critical teacher that provides specific, concise and constructive feedback in plain language, together with your score."
 
 CRITICON_TEMPLATE = """### Task description:
 You are given an instruction, a response to evaluate and the criteria for the feedback and score to take into account.
@@ -63,7 +60,14 @@ class Criticon(TextGeneration):
         return ["score", "critique", "raw_output"]
 
     def format_input(self, input: Dict[str, Any]) -> "ChatType":
-        return [{"role": "user", "content": self._template.format(**input)}]
+        return [
+            {
+                "role": "system",
+                "content": system_prompt,
+                "role": "user",
+                "content": self._template.format(**input)
+            }
+        ]
 
     def format_output(self, output: str | None, input: Dict[str, Any]) -> CritiqueScore:
         score = critique = raw_output = None
@@ -72,7 +76,7 @@ class Criticon(TextGeneration):
             critique = critique.strip()
             score = score.strip()
         except:
-            print(f"Coudln't parse the output: {output}")
+            print(f"Couldn't parse the output: {output}")
             raw_output = output
         
         return CritiqueScore(score=score, critique=critique, raw_output=raw_output)
@@ -87,12 +91,10 @@ if __name__ == "__main__":
         )
         critique_task = Criticon(
             name="criticon",
-            llm=MistralLLM(
-                model="mistral-large-latest",
-                # model="mistral-medium",
-                api_key=os.getenv("MISTRALAI_API_KEY"),  # type: ignore
+            llm=OpenAILLM(
+                model="gpt-4-turbo-preview",
+                api_key=os.getenv("OPENAI_API_KEY"),
             ),
-            # input_mappings={"instruction": "prompt", "response": "response"},
             input_batch_size=8
         )
 
@@ -113,7 +115,7 @@ if __name__ == "__main__":
             }
         )
         distiset.push_to_hub(
-            repo_id="distilabel-internal-testing/critique-mt-bench-eval-mistral-large-v0.0",
+            repo_id="distilabel-internal-testing/critique-bench-gpt-4-turbo-v0.1",
             private=True,
             token=os.getenv("HF_API_TOKEN"),
         )
