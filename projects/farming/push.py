@@ -1,6 +1,5 @@
 import re
 import datetime
-import os
 import uuid
 
 import argilla as rg
@@ -22,17 +21,17 @@ feedback_dataset = rg.FeedbackDataset(
         rg.TextField(name="task", use_markdown=True),
     ],
     questions=[
-        rg.RatingQuestion(name="rating", values=[1, 2, 3, 4, 5]),
-        rg.TextQuestion(name="rationale", required=False),
-        rg.TextQuestion(name="improved_instruction", required=False),
-        rg.TextQuestion(name="improved_response", required=False),
-        rg.TextQuestion(name="improved_task", required=True),
         rg.LabelQuestion(
             name="more",
             labels=["Yes", "No"],
             required=False,
             type="label_selection",
         ),
+        rg.RatingQuestion(name="rating", values=[1, 2, 3, 4, 5]),
+        rg.TextQuestion(name="rationale", required=False),
+        rg.TextQuestion(name="improved_instruction", required=False),
+        rg.TextQuestion(name="improved_response", required=False),
+        rg.TextQuestion(name="improved_task", required=True),
     ],
 )
 

@@ -1,2 +1,3 @@
 datasets
 python_dotenv
+sentence_transformers
