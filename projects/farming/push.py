@@ -23,16 +23,29 @@ feedback_dataset = rg.FeedbackDataset(
     questions=[
         rg.LabelQuestion(
             name="more",
+            title="More like this?",
             labels=["Yes", "No"],
-            required=False,
             type="label_selection",
         ),
-        rg.RatingQuestion(name="rating", values=[1, 2, 3, 4, 5]),
-        rg.TextQuestion(name="rationale", required=False),
-        rg.TextQuestion(name="improved_instruction", required=False),
-        rg.TextQuestion(name="improved_response", required=False),
-        rg.TextQuestion(name="improved_task", required=True),
+        # rg.RatingQuestion(name="rating", values=[1, 2, 3, 4, 5]),
+        # rg.TextQuestion(name="rationale", required=False),
+        # rg.TextQuestion(name="improved_instruction", required=False),
+        # rg.TextQuestion(name="improved_response", required=False),
+        # rg.TextQuestion(name="improved_task", required=True),
     ],
+)
+
+feedback_dataset.add_vector_settings(
+    rg.VectorSettings(name="instruction_vector", dimensions=384)
+)
+feedback_dataset.add_vector_settings(
+    rg.VectorSettings(name="answer_vector", dimensions=384)
+)
+feedback_dataset.add_vector_settings(
+    rg.VectorSettings(name="task_vector", dimensions=384)
+)
+feedback_dataset.add_vector_settings(
+    rg.VectorSettings(name="rationale_vector", dimensions=384)
 )
 
 
@@ -42,18 +55,21 @@ def build_record(
     task: str,
     rationale: str = "No feedback provided",
     rating: int = 0,
+    vectors: dict = None,
 ):
+
     try:
         rating = int(float(rating))
     except:
         rating = 1
     record = rg.FeedbackRecord(
         fields={"instruction": instruction, "response": answer, "task": task},
+        vectors=vectors,
     )
-    record.suggestions = [
-        {"question_name": "rating", "value": rating, "agent": "gpt-4"},
-        {"question_name": "rationale", "value": rationale, "agent": "gpt-4"},
-    ]
+    # record.suggestions = [
+    #     {"question_name": "rating", "value": rating, "agent": "gpt-4"},
+    #     {"question_name": "rationale", "value": rationale, "agent": "gpt-4"},
+    # ]
     return record
 
 
@@ -62,12 +78,16 @@ def push_to_argilla(
 ):
     feedback_records = []
     for _, row in dataset.to_pandas().iterrows():
+
+        vectors = {col: row[col].tolist() for col in row.to_dict() if "vector" in col}
+
         record = build_record(
             instruction=row["instruction"],
             answer=row["answer"],
-            rationale=row["rationale"],
-            rating=row["rating"],
+            rationale=row.get("rationale") or None,
+            rating=row.get("rating") or 0,
             task=row["task"],
+            vectors=vectors,
         )
         feedback_records.append(record)
     feedback_dataset.add_records(feedback_records)
@@ -94,7 +114,7 @@ def push_to_hub(name: str, workspace: str = "admin", repo_id: str = "burtenshaw"
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
-    default_repo_id = "argilla/farming"
+    default_repo_id = "distilabel-internal-testing/farming-research-v0.2"
     default_dataset_split = "train"
     default_argilla_dataset_name = default_repo_id.replace("/", "_")
     default_argilla_workspace = "admin"
@@ -110,6 +130,6 @@ if __name__ == "__main__":
 
     push_to_argilla(
         dataset=dataset[args.split],
-        name=args.name,
+        name="farming",
         workspace=args.workspace,
     )
