@@ -3,12 +3,15 @@ import json
 import pandas as pd
 from distilabel.dataset import Dataset
 from distilabel.pipeline import Pipeline
+
 # from distilabel.llm import JSONOpenAILLM
 # from distilabel.llm import vLLM
 # from vllm import LLM
 
 from src.examples import FunctionCallResponseArray
+# from src.functionary import functionary_llm_small
 from src.functionary import functionary_llm_small
+
 # from src.responses import call_task
 
 # mixtral = vLLM(
@@ -54,6 +57,8 @@ models = [
     # ("mixtral-8x7b-instruct-v0.1", mixtral),
     # ("notus-7b-v1", notus),
     # ("mistral-7b-instruct-v0.1", mistral),
+    # ("functionary-small-v2.2", functionary_llm_small),
+    # ("functionary-medium-v2.2", functionary_llm_medium)
     ("functionary-small-v2.2", functionary_llm_small)
 ]
 

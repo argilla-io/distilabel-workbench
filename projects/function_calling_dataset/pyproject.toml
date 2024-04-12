@@ -7,7 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-distilabel = {git = "https://github.com/argilla-io/distilabel.git"}
+distilabel = "^0.6.0"
 argilla = "^1.24.0"
 click = "^8.1.7"
 rich = "^13.7.0"

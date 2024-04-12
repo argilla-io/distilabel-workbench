@@ -1,0 +1,4 @@
+# distilabel[openai,hf-transformers]>=1.0.0
+pynvml
+huggingface_hub
+argilla

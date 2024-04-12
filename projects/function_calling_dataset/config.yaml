@@ -3,7 +3,7 @@ save_frequency: 50
 data:
   input:
     # repo_id: burtenshaw/function_calling_dataset
-    generated: /workspace/distilabel-workbench/scripts/function_calling_dataset/data/fml-generation-1/2024-03-01-14-48-53/checkpoints/benchmark_generate
+    generated: /home/ben/code/distilabel-workbench-function/scripts/function_calling_dataset/data/functionary_benchmark_small_no_feedback
   output:
     argilla: fml-generation
 generation:
