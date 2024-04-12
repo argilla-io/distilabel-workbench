@@ -1,3 +1,5 @@
 datasets
 python_dotenv
 sentence_transformers
+streamlit
+huggingface_hub
