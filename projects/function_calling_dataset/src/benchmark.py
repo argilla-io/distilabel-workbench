@@ -9,8 +9,9 @@ from distilabel.pipeline import Pipeline
 # from vllm import LLM
 
 from src.examples import FunctionCallResponseArray
-
 # from src.functionary import functionary_llm_small
+from src.functionary import functionary_llm_small
+
 # from src.responses import call_task
 
 # mixtral = vLLM(
@@ -58,8 +59,8 @@ models = [
     # ("mistral-7b-instruct-v0.1", mistral),
     # ("functionary-small-v2.2", functionary_llm_small),
     # ("functionary-medium-v2.2", functionary_llm_medium)
+    ("functionary-small-v2.2", functionary_llm_small)
 ]
-
 
 def wrangle_dataset(dataset, max_inputs=None, max_row_inputs=3):
     df = dataset.to_pandas()
