@@ -653,12 +653,14 @@ files = [
 
 [[package]]
 name = "distilabel"
-version = "0.5.0"
+version = "0.6.0"
 description = "AI Feedback (AIF) framework"
 optional = false
 python-versions = ">=3.8"
-files = []
-develop = false
+files = [
+    {file = "distilabel-0.6.0-py3-none-any.whl", hash = "sha256:dfedd5af372ad52dcca4945811e77dffa6365aebdade8ebd5f0b9e967d1c5154"},
+    {file = "distilabel-0.6.0.tar.gz", hash = "sha256:cae75113b5bb34227e11f00aa6c9d18b5286a6fe02b6dcae7d486210560f2e58"},
+]
 
 [package.dependencies]
 datasets = ">=2.14.0"
@@ -4376,4 +4378,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "abf1e0de0cbbf8c92a33a5ef1cae87accebfade4b1540d2e1f5169a82939bbaa"
+content-hash = "3f9a83c1ff45c3b023be310ea6c665858c8cf9880d7505c0a2b713e35dbd9750"
