@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union, Optional, TypedDict
 
 from distilabel.steps.tasks.typing import ChatType
 
@@ -11,6 +11,7 @@ from distilabel.steps.tasks.self_instruct import SelfInstruct
 from distilabel.steps.tasks.evol_instruct.base import EvolInstruct
 from distilabel.steps.tasks.text_generation import TextGeneration
 from distilabel.llms.mistral import MistralLLM
+from distilabel.llms.openai import OpenAILLM
 from distilabel.pipeline import Pipeline
 from distilabel.steps import StepInput, StepOutput, Step
 
@@ -100,6 +101,81 @@ class CleanNumberedList(Step):
 
 
 
+DOMAIN_EXPERT_CRITIQUE = """### Task description:
+You are given an instruction, a response to evaluate and the criteria for the feedback and score to take into account.
+- You must write the feedback according to the "Feedback criteria", not a general or abstract one.
+- After the feedback, write a score as an integer between 1 and 5, using the "Scoring system".
+- The output format MUST be: "(your feedback) [SCORE] (score between 1 and 5)".
+
+### Feedback criteria:
+1. Is the answer relevant to the question?
+2. Does the answer contain accurate information?
+3. Does the answer provide a comprehensive response?
+4. Does the answer align with the user's intent?
+
+### Scoring system:
+1: **Low Quality**: Contains inaccuracies, may be entirely wrong or has severe hallucinations.
+2: **Moderate Quality**: Addresses some aspects, but has errors or is partially aligned with instructions.
+3: **Good**: Generally accurate but may contain minor errors or slight deviations.
+4: **Very Good**: Near perfect, with minor issues in terms of alignment or confidence.
+5: **Excellent**: Accurate, confident, aligned with instructions, and free of hallucinations.
+
+### Instruction:
+{instruction}
+
+### Response:
+{response}
+
+### Feedback:
+"""
+
+
+class CritiqueScore(TypedDict):
+    score: Optional[str] = None
+    critique: Optional[str] = None
+    raw_output: Optional[str] = None
+
+
+class RelevanceLabeller(TextGeneration):
+    """A critique model to determine the relevance of an answer in relation to a question."""
+
+    _system_prompt: str = (
+        "You are an AI critique in charge of determining the suitability of questions to answers."
+    )
+    _template: str = DOMAIN_EXPERT_CRITIQUE
+
+    @property
+    def inputs(self) -> List[str]:
+        return ["instruction", "response"]
+
+    @property
+    def outputs(self) -> List[str]:
+        return ["score", "critique", "raw_output"]
+
+    def format_input(self, input: Dict[str, Any]) -> "ChatType":
+        return [
+            {
+                "role": "system",
+                "content": self._system_prompt,
+                "role": "user",
+                "content": self._template.format(**input),
+            }
+        ]
+
+    def format_output(
+        self, output: Union[str, None], input: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        score = critique = raw_output = None
+        try:
+            critique, score = output.split("[SCORE]")
+            critique = critique.strip()
+            score = score.strip()
+        except:
+            raw_output = output
+        
+        return CritiqueScore(score=score, critique=critique, raw_output=raw_output)
+
+
 with Pipeline("farming") as pipeline:
 
     load_data = LoadDataFromDicts(
@@ -147,6 +223,16 @@ with Pipeline("farming") as pipeline:
     )
     keep_columns = KeepColumns(name="keep_columns", columns=["model_name", "evolved_questions", "domain_expert_answer"])
 
+    labeller = RelevanceLabeller(
+        name="relevance_labeller",
+        llm=OpenAILLM(
+            model="gpt-4-turbo",
+            api_key=os.getenv("OPENAI_API_KEY"),
+        ),
+        input_batch_size=8,
+        input_mappings={"instruction": "evolved_questions", "response": "domain_expert_answer"}
+    )
+
     load_data.connect(self_instruct)
     self_instruct.connect(expand_instructions)
     expand_instructions.connect(cleaner)
@@ -154,19 +240,21 @@ with Pipeline("farming") as pipeline:
     evol_instruction_complexity.connect(expand_evolutions)
     expand_evolutions.connect(domain_expert)
     domain_expert.connect(keep_columns)
+    keep_columns.connect(labeller)
 
 
 if __name__ == "__main__":
     distiset = pipeline.run(
         parameters={
-            "domain_expert": {
+            "relevance_labeller": {
                 "llm": {
                     "generation_kwargs": {
                         "max_new_tokens": 1024
                     },
-                }
+                },
             },
-        }
+        },
+        use_cache=True
     )
     distiset.push_to_hub(
         repo_id="distilabel-internal-testing/farming-research-v0.2",
