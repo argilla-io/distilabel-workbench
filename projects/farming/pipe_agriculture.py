@@ -140,7 +140,11 @@ if __name__ == "__main__":
     distiset = pipeline.run(
         parameters={
             "domain_expert": {
-                "generation_kwargs": {"max_new_tokens": 1024},
+                "llm": {
+                    "generation_kwargs": {
+                        "max_new_tokens": 1024
+                    },
+                }
             },
         }
     )
