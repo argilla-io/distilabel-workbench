@@ -6,6 +6,9 @@ from distilabel.steps.generators.huggingface import LoadHubDataset
 from distilabel.pipeline import Pipeline
 from distilabel.llms.openai import OpenAILLM
 from distilabel.steps.tasks.text_generation import TextGeneration
+import logging
+
+logger = logging.getLogger("criticon-bench")
 
 if TYPE_CHECKING:
     from distilabel.steps.tasks.typing import ChatType
@@ -17,7 +20,7 @@ CRITICON_TEMPLATE = """### Task description:
 You are given an instruction, a response to evaluate and the criteria for the feedback and score to take into account.
 - You must write the feedback according to the "Feedback criteria", not a general or abstract one.
 - After the feedback, write a score as an integer between 1 and 10, using the "Scoring system".
-- The output format MUST be: "Feedback: (your feedback) [SCORE] (score between 1 and 10)".
+- The output format MUST be: "(your feedback) [SCORE] (score between 1 and 10)".
 
 ### Feedback criteria:
 1. **Correctness & Informativeness**: Does the output provide accurate and helpful information?
@@ -76,46 +79,57 @@ class Criticon(TextGeneration):
             critique = critique.strip()
             score = score.strip()
         except:
-            print(f"Couldn't parse the output: {output}")
+            print("***")
+            print(f"Couldn't parse the output:\n {output}")
+            print("***")
+            # logger.info(f"Couldn't parse the output:\n {output}")
             raw_output = output
         
         return CritiqueScore(score=score, critique=critique, raw_output=raw_output)
 
 
+with Pipeline(name="benchmark-critique") as pipeline:
+    dataset = LoadHubDataset(
+        name="load_dataset",
+        batch_size=64,
+    )
+    critique_task = Criticon(
+        name="criticon",
+        llm=OpenAILLM(
+            # model="gpt-3.5-turbo",
+            model="gpt-4-turbo",
+            api_key=os.getenv("OPENAI_API_KEY"),
+        ),
+        input_batch_size=8
+    )
+
+    dataset.connect(critique_task)
+
+
 if __name__ == "__main__":
 
-    with Pipeline(name="benchmark-critique") as pipeline:
-        dataset = LoadHubDataset(
-            name="load_dataset",
-            batch_size=64,
-        )
-        critique_task = Criticon(
-            name="criticon",
-            llm=OpenAILLM(
-                model="gpt-4-turbo-preview",
-                api_key=os.getenv("OPENAI_API_KEY"),
-            ),
-            input_batch_size=8
-        )
-
-        dataset.connect(critique_task)
-
-        distiset = pipeline.run(
-            parameters={
-                "load_dataset": {
-                    "repo_id": "distilabel-internal-testing/mt-bench-eval-critique",
-                    "split": "train",
-                    "token": os.getenv("HF_API_TOKEN"),
-                },
-                "criticon": {
+    distiset = pipeline.run(
+        parameters={
+            "load_dataset": {
+                "repo_id": "distilabel-internal-testing/prometheus-bench-critique",
+                "split": "test",
+                "token": os.getenv("HF_API_TOKEN"),
+            },
+            "criticon": {
+                "llm": {
                     "generation_kwargs": {
-                        "max_length": 512, "temperature": 1.0, "top_p": 0.95
-                    },
+                        "max_new_tokens": 1024,
+                        "temperature": 0.3,
+                        "top_p": 0.95
+                    },  
                 }
             }
-        )
-        distiset.push_to_hub(
-            repo_id="distilabel-internal-testing/critique-bench-gpt-4-turbo-v0.1",
-            private=True,
-            token=os.getenv("HF_API_TOKEN"),
-        )
+        },
+        use_cache=False
+    )
+    # distiset.push_to_hub(
+    #     repo_id="distilabel-internal-testing/critique-bench-gpt-3.5-turbo-v0.1",
+    #     # repo_id="distilabel-internal-testing/critique-bench-gpt-4-turbo-v0.1",
+    #     private=True,
+    #     token=os.getenv("HF_API_TOKEN"),
+    # )
