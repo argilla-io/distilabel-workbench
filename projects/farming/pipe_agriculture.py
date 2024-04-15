@@ -6,11 +6,14 @@ from distilabel.steps.tasks.typing import ChatType
 
 from distilabel.steps.generators.data import LoadDataFromDicts
 from distilabel.steps.expand import ExpandColumns
+from distilabel.steps.keep import KeepColumns
 from distilabel.steps.tasks.self_instruct import SelfInstruct
 from distilabel.steps.tasks.evol_instruct.base import EvolInstruct
 from distilabel.steps.tasks.text_generation import TextGeneration
 from distilabel.llms.mistral import MistralLLM
 from distilabel.pipeline import Pipeline
+from distilabel.steps import StepInput, StepOutput, Step
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -84,6 +87,19 @@ class DomainExpert(TextGeneration):
         ]
 
 
+class CleanNumberedList(Step):
+    """A step to clean the numbered list of questions."""
+
+    def process(self, inputs: StepInput) -> StepOutput:
+        import re
+        pattern = r'^\d+\.\s'
+
+        for input in inputs:
+            input["question"] = re.sub(pattern, "", input["question"])
+        yield inputs
+
+
+
 with Pipeline("farming") as pipeline:
 
     load_data = LoadDataFromDicts(
@@ -111,11 +127,12 @@ with Pipeline("farming") as pipeline:
         store_evolutions=True,
         input_batch_size=8,
         include_original_instruction=True,
-        input_mappings={"instruction": "questions"},
+        input_mappings={"instruction": "question"},
     )
     expand_instructions = ExpandColumns(
-        name="expand_columns", columns={"instructions": "questions"}
+        name="expand_columns", columns={"instructions": "question"}
     )
+    cleaner = CleanNumberedList(name="clean_numbered_list")
     expand_evolutions = ExpandColumns(
         name="expand_columns_evolved",
         columns={"evolved_instructions": "evolved_questions"},
@@ -128,12 +145,15 @@ with Pipeline("farming") as pipeline:
         input_mappings={"instruction": "evolved_questions"},
         output_mappings={"generation": "domain_expert_answer"},
     )
+    keep_columns = KeepColumns(name="keep_columns", columns=["model_name", "evolved_questions", "domain_expert_answer"])
 
     load_data.connect(self_instruct)
     self_instruct.connect(expand_instructions)
-    expand_instructions.connect(evol_instruction_complexity)
+    expand_instructions.connect(cleaner)
+    cleaner.connect(evol_instruction_complexity)
     evol_instruction_complexity.connect(expand_evolutions)
     expand_evolutions.connect(domain_expert)
+    domain_expert.connect(keep_columns)
 
 
 if __name__ == "__main__":
