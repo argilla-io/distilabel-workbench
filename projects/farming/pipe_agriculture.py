@@ -40,14 +40,12 @@ topics = seed_data["topics"]
 positions = seed_data["perspectives"]
 examples = seed_data["examples"][:5]
 
-examples_prompt = f""" Examples of high quality questions:"""
+question_examples_prompt = """ Examples of high quality questions:"""
+answer_examples_prompt = """ Examples of high quality answers:"""
 
 for example in examples:
-    examples_prompt += (
-        f"""\n- Question: {example["question"]}\n  Answer: {example["answer"]}\n"""
-    )
-
-application_description += examples_prompt
+    question_examples_prompt += f"""\n- Question: {example["question"]}\n"""
+    answer_examples_prompt += f"""\n- Answer: {example["answer"]}\n"""
 
 
 def create_topics(topics: List[str], positions: List[str]) -> List[str]:
@@ -74,16 +72,20 @@ class DomainExpert(TextGeneration):
     _system_prompt: str = (
         "You are a domain expert in the domain of farming and agriculture."
     )
-    _template: str = domain_expert_prompt + examples_prompt
+    _template: str = (
+        domain_expert_prompt + question_examples_prompt + answer_examples_prompt
+    )
 
     def format_input(self, input: Dict[str, Any]) -> "ChatType":
         return [
             {
                 "role": "system",
                 "content": self._system_prompt,
+            },
+            {
                 "role": "user",
                 "content": self._template.format(**input),
-            }
+            },
         ]
 
 
@@ -92,12 +94,12 @@ class CleanNumberedList(Step):
 
     def process(self, inputs: StepInput) -> StepOutput:
         import re
-        pattern = r'^\d+\.\s'
+
+        pattern = r"^\d+\.\s"
 
         for input in inputs:
             input["question"] = re.sub(pattern, "", input["question"])
         yield inputs
-
 
 
 with Pipeline("farming") as pipeline:
@@ -145,7 +147,10 @@ with Pipeline("farming") as pipeline:
         input_mappings={"instruction": "evolved_questions"},
         output_mappings={"generation": "domain_expert_answer"},
     )
-    keep_columns = KeepColumns(name="keep_columns", columns=["model_name", "evolved_questions", "domain_expert_answer"])
+    keep_columns = KeepColumns(
+        name="keep_columns",
+        columns=["model_name", "evolved_questions", "domain_expert_answer"],
+    )
 
     load_data.connect(self_instruct)
     self_instruct.connect(expand_instructions)
@@ -161,9 +166,7 @@ if __name__ == "__main__":
         parameters={
             "domain_expert": {
                 "llm": {
-                    "generation_kwargs": {
-                        "max_new_tokens": 1024
-                    },
+                    "generation_kwargs": {"max_new_tokens": 1024},
                 }
             },
         }
