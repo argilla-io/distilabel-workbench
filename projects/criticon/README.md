@@ -67,3 +67,7 @@ bash finetune_full_v2.sh
 ## WandB Runs
 
 - [SFT-full](https://wandb.ai/argilla-io/criticon/runs/g8sd5jhi?nw=nwuserplagussargilla)
+
+## Notion notes
+
+- [Notion critique model](https://www.notion.so/argilla/Critique-Model-CM-d38933d2200c471f862a2e4bbd6e7a1f)
