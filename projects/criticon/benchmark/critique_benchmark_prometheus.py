@@ -4,7 +4,6 @@ from typing import Any, Dict, TYPE_CHECKING, List, TypedDict, Optional
 
 from distilabel.steps.generators.huggingface import LoadHubDataset
 from distilabel.pipeline import Pipeline
-#from distilabel.llms.openai import OpenAILLM
 from distilabel.llms.vllm import vLLM
 from distilabel.steps.tasks.text_generation import TextGeneration
 import logging
