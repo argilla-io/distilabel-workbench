@@ -15,21 +15,19 @@ python generate_iter_spin.py \
 """
 
 import os
+from dataclasses import dataclass
 
 from datasets import Dataset, load_dataset
-from distilabel.pipeline import Pipeline
-from distilabel.tasks import TextGenerationTask, Task
-from distilabel.tasks.prompt import Prompt
-from distilabel.llm import LLM
-from huggingface_hub import login
-
 from distilabel.dataset import DatasetCheckpoint
-
-from dataclasses import dataclass
+from distilabel.llm import LLM
+from distilabel.pipeline import Pipeline
+from distilabel.tasks import Task, TextGenerationTask
+from distilabel.tasks.prompt import Prompt
+from huggingface_hub import login
 
 
 def get_dataset(ds_name: str) -> Dataset:
-    if not "iter" in ds_name:
+    if "iter" not in ds_name:
         dataset = load_dataset(ds_name, split="train")
         dataset = dataset.rename_column("prompt", "input")
     else:
@@ -39,7 +37,7 @@ def get_dataset(ds_name: str) -> Dataset:
         def get_input(ex):
             return {"input": ex["real"][0]["content"]}
         dataset = dataset.map(get_input, remove_columns=["real", "generated"])
-        
+
     return dataset
 
 
@@ -61,6 +59,7 @@ class SPINTextGenerationTask(TextGenerationTask):
 
 def load_llm(task: Task, cuda_visible_devices: str = "0", model_name: str = "teknium/OpenHermes-2.5-Mistral-7B") -> LLM:
     import os
+
     from distilabel.llm import vLLM
     from vllm import LLM
     os.environ["CUDA_VISIBLE_DEVICES"] = cuda_visible_devices
@@ -81,11 +80,11 @@ def load_llm(task: Task, cuda_visible_devices: str = "0", model_name: str = "tek
 def prepare_for_spin(example):
     return {
         "real": [
-            {"role": "user", "content": example["input"]}, 
+            {"role": "user", "content": example["input"]},
             {"role": "assistant", "content": example["real"][0]}
         ],
         "generated": [
-            {"role": "user", "content": example["input"]}, 
+            {"role": "user", "content": example["input"]},
             {"role": "assistant", "content": example["generated"][0]}
         ]
     }
@@ -134,7 +133,7 @@ if __name__ == "__main__":
         extra_kwargs={
             "repo_id": args.new_dataset,
             "token": HF_API_TOKEN,
-            "private": True,
+            "private": False,
             "split": "train"
         },
         save_frequency=SAVE_FREQ
