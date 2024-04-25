@@ -1,0 +1,39 @@
+# Model arguments
+model_name_or_path: davidberenstein1957/ultra-feedback-dutch-cleaned-hq-spin-geitje-7b-ultra-sft_iter1
+
+# Data training arguments
+dataset_mixer:
+  davidberenstein1957/ultra-feedback-dutch-cleaned-hq_iter1: 1.0
+  davidberenstein1957/ultra-feedback-dutch-cleaned-hq_iter2: 1.0
+dataset_splits:
+- train
+- test
+preprocessing_num_workers: 9
+
+# Trainer arguments
+bf16: true
+beta: 0.1
+do_eval: true
+evaluation_strategy: steps
+eval_steps: 25
+gradient_accumulation_steps: 2
+gradient_checkpointing: true
+hub_model_id: davidberenstein1957/ultra-feedback-dutch-cleaned-hq-spin-geitje-7b-ultra-sft_iter2
+learning_rate: 1.0e-7
+log_level: info
+logging_steps: 10
+lr_scheduler_type: linear
+max_length: 1024
+max_prompt_length: 512
+num_train_epochs: 2
+optim: rmsprop
+output_dir: outputs
+per_device_train_batch_size: 8
+per_device_eval_batch_size: 8
+push_to_hub: true
+save_strategy: "epoch"
+save_total_limit: null
+seed: 42
+warmup_ratio: 0.1
+report_to:
+- wandb
