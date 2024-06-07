@@ -7,7 +7,7 @@ Example:
 $ python docs_dataset.py \
     "argilla-io/argilla-python" \
     "my-name/argilla_sdk_docs_raw" \
-    --max_chars 256
+    --max_chars 512
 """
 
 import pandas as pd
@@ -231,7 +231,6 @@ def create_dataset(data: dict[str, List[str]]) -> Dataset:
 def main():
     import argparse
 
-    description = """Script to download a dataset from a repository in the hub."""
     description = (
         "Download the docs from a github repository and generate a dataset "
         "from the markdown files. The dataset will be pushed to the hub."
