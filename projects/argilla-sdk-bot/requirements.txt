@@ -1,0 +1,4 @@
+markdown-it-py==3.0.0
+PyGithub==2.3.0
+nltk==3.8.1
+datasets==2.19.2
