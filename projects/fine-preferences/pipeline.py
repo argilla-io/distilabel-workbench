@@ -12,12 +12,12 @@ if TYPE_CHECKING:
     from distilabel.steps.tasks.typing import ChatType
 
 SYSTEM_PROMPT = """
-Your task is to generate a conversation of multiple turns between a `User` and an `Assistant`. You will be provided with a document as a `Context`, and you will have to generate a conversation with {{ num_user_messages }} `User` messages and {{ num_assistant_messages }} `Assistant` messages.{% if end_with_user -%} You MUST end the conversation with a `User` message.{%- endif %}
+Your task is to generate a conversation of multiple turns between a `User` and an `Assistant`. You will be provided with a document as a `Context`, and you will have to generate a conversation with {{ num_user_messages }} `User` messages and {{ num_assistant_messages }} `Assistant` messages.{% if end_with_user -%} You MUST end the conversation with a `User` message asking a follow up question to the assistant.{%- endif %}
 
 
-A turn is one user message and one assistant message. Each new turn will continue developing the conversation from the previous turns.
+A turn is one user message and one assistant message. Each new turn will continue developing the conversation from the previous turns. It's highly important to make sure the last `User` message is a follow-up message and not a message ending the conversation.
 
-The conversation MUST be engaging.
+The conversation MUST be engaging, interesting, and none of the messages should reference the context document.
 
 ```markdown
 User: <user_interaction_0>
