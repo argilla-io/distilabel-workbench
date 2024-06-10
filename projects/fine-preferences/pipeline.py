@@ -12,12 +12,16 @@ if TYPE_CHECKING:
     from distilabel.steps.tasks.typing import ChatType
 
 SYSTEM_PROMPT = """
-Your task is to generate a conversation of multiple turns between a `User` and an `Assistant`. You will be provided with a document as a `Context`, and you will have to generate a conversation with {{ num_user_messages }} `User` messages and {{ num_assistant_messages }} `Assistant` messages.{% if end_with_user -%} You MUST end the conversation with a `User` message.{%- endif %}
-
-
+Your task is to generate a conversation of multiple turns between a `User` and an `Assistant`.
+You will be provided with a document as a `Context`, and you will have to generate a conversation with {{ num_user_messages }} `User` messages and {{ num_assistant_messages }} `Assistant` messages.
 A turn is one user message and one assistant message. Each new turn will continue developing the conversation from the previous turns.
+{% if end_with_user -%} You MUST end the conversation with a `User` message. Last `User` message MUST NOT be a closing conversation message. Last `User` message MUST allow continuing the conversation.{%- endif %}
 
 The conversation MUST be engaging.
+The conversation MUST NOT reference the `Context`.
+`User` messages MUST NOT start with sentences like the following: "That sounds like a good idea...", "That sounds...", "That's a good point...", etc.
+`User` MUST simulate a real user interaction going straight to the point.
+Start the conversation with a message from the `User` asking about something related with the `Context`.
 
 ```markdown
 User: <user_interaction_0>
@@ -96,6 +100,9 @@ class GenerateConvWithContext(Task):
             role, content = line.split(":", 1)
             conversation.append({"role": role, "content": content.strip()})
 
+        if self.end_with_user and conversation[-1]["role"] == "assistant":
+            conversation.pop()
+
         return {"conversation": conversation}
 
 
@@ -126,7 +133,8 @@ if __name__ == "__main__":
                     "generation_kwargs": {"temperature": 0.7, "max_new_tokens": 4096}
                 }
             }
-        }
+        },
+        use_cache=False,
     )
 
-    distiset.push_to_hub("distilabel-internal-testing/fine-preferences-test-2")
+    distiset.push_to_hub("distilabel-internal-testing/fine-preferences-test-9")
