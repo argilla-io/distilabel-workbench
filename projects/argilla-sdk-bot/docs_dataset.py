@@ -6,8 +6,7 @@ $ python docs_dataset.py -h
 Example:
 $ python docs_dataset.py \
     "argilla-io/argilla-python" \
-    "my-name/argilla_sdk_docs_raw" \
-    --max_chars 512
+    "plaguss/argilla_sdk_docs_raw_unstructured"
 """
 
 import pandas as pd
@@ -19,11 +18,8 @@ import os
 
 from typing import List
 
-import nltk
 
 from pathlib import Path
-from markdown_it import MarkdownIt
-from markdown_it.token import Token
 
 
 # The github related functions are a copy from the following repository
@@ -47,149 +43,13 @@ def download_folder(repo: Repository, folder: str, out: str, recursive: bool) ->
         download(c, out)
 
 
-def read_file(filename: Path) -> str:
-    """Read a whole markdown file to a string."""
-    with open(filename, "r") as f:
-        return f.read()
-
-
-## Some helper functions to find specific pieces in the markdown files
-## that we may want to set aside.
-
-
-def is_front_matter(text: str) -> bool:
-    """Check if a token pertains to the front matter.
-
-    The check seeks if the string starts with '---' and
-    the word `title` after a single line jump (it will fail if some
-    space is inserted between them), and ends with '---'.
-
-    Args:
-        text (str):
-            text obtained in the Token's content.
-            Expects to be applied to the tokens from a markdown parsed.
-
-    Returns:
-        bool
-    """
-    return text.startswith("---\n") and text.endswith("\n---")
-
-
-def is_figure(text: str) -> bool:
-    """Check if a paragraph is just a picture in the doc.
-
-    Some lines may contain just a picture, and there is no
-    reason to translate those.
-    i.e.
-    '![helpner](/images/helpner-arch-part1.png)'
-    The type of check is not perfect, it just fits my needs.
-
-    Args:
-        text (str): text obtained in the Token's content.
-
-    Returns:
-        bool:
-    """
-    text = text.strip()
-    return text.startswith("![") and text.endswith(")")
-
-
-def is_code(text: str) -> bool:
-    """Check if a blob of text is a chunk of code.
-
-    Args:
-        text (str): text obtained in the Token's content.
-
-    Returns:
-        bool
-    """
-    text = text.strip()
-    return text.startswith("```") and text.endswith("```")
-
-
-def is_comment(text: str) -> bool:
-    """Check if a blob of text is a comment."""
-    text = text.strip()
-    return text.startswith("<!--") and text.endswith("-->")
-
-
-def get_text_pieces(md_tokens: List[Token]) -> List[str]:
-    """Obtains the text pieces from the markdown tokens.
-
-    Parses the markdown file to obtain the text as extracted by the parser
-
-    Args:
-        md_tokens: List of tokens obtained from the markdown parser.
-
-    Returns:
-        List of strings that can be used to generate the chunks.
-    """
-    text_pieces = []
-    for t in md_tokens:
-        if t.type == "inline":
-            if any(
-                (
-                    is_front_matter(t.content),
-                    is_figure(t.content),
-                    # is_code(t.content),
-                    is_comment(t.content),
-                )
-            ):
-                continue
-            text_pieces.append(t.content)
-    return text_pieces
-
-
-def chunk_texts(text_pieces: List[str], max_chars: int = 512) -> List[str]:
-    """Function to generate the chunks of text from the text pieces.
-
-    It loops over the text pieces to generate the chunks of text of roughly
-    the same length given by the `max_chars` parameter.
-
-    Note:
-        The algorithm is not perfect, it may generate chunks that are of different
-        sizes, and pieces of code may be split in the middle, it can be further improved.
-
-    Args:
-        text_pieces: List of strings to be chunked, the strings from the markdown file.
-        max_chars: It will determine the approximate size of the chunks
-            in RAG. Defaults to 512.
-
-    Returns:
-        List of strings chunked.
-    """
-    chunks = []
-    current_chunk = []
-    current_chars = 0
-
-    for text in text_pieces:
-        if len(text) > max_chars:
-            sentences = nltk.sent_tokenize(text)
-            if len(sentences) > 1:
-                # To avoid infinite recursion
-                pieces = chunk_texts(sentences, max_chars)
-                chunks.extend(pieces)
-            else:
-                current_chunk.extend(sentences)
-                chunks.extend(sentences)
-
-        elif current_chars + len(text) > max_chars:
-            chunks.append(". ".join(current_chunk))
-            current_chunk = [text]
-            current_chars = len(text)
-
-        else:
-            current_chunk.append(text)
-            current_chars += len(text)
-
-    if current_chunk:
-        chunks.append(". ".join(current_chunk))
-
-    return chunks
-
-
 def create_chunks(md_files: List[Path], max_chars: int = 512) -> dict[str, List[str]]:
     """Create the chunks of text from the markdown files.
+
+    UPDATED TO WORK WITH UNSTRUCTURED CHUNKING STRATEGY, TO EXPOSE MORE ARGUMENTS.
+    IDEALLY WE SHOULD ALLOW CHUNKING TAKING INTO ACCOUNT THE MAX SIZE COULD BE
+    DELIMITED BY THE MAXIMUM NUMBER OF TOKENS, NOT CHARACTERS, OF THE TARGET MODEL
+    FOR THE EMBEDDINGS.
 
     Args:
         md_files: List of paths to the markdown files.
@@ -199,13 +59,13 @@ def create_chunks(md_files: List[Path], max_chars: int = 512) -> dict[str, List[
     Returns:
         Dictionary from filename to the list of chunks.
     """
-    md = MarkdownIt("zero")
+    from unstructured.chunking.title import chunk_by_title
+    from unstructured.partition.auto import partition
     data = {}
     for file in md_files:
-        contents = read_file(file)
-        md_tokens = md.parse(contents)
-        text_pieces = get_text_pieces(md_tokens)
-        chunks = chunk_texts(text_pieces, max_chars=max_chars)
+        partitioned_file = partition(filename=file)
+        chunks = [str(chunk) for chunk in chunk_by_title(partitioned_file)]
+
         data[str(file)] = chunks
     return data
 
@@ -295,5 +155,5 @@ def main():
 
 if __name__ == "__main__":
     # Download the punkt tokenizer, will need it for the sentence tokenizer
-    nltk.download("punkt")
+    # nltk.download("punkt")
     main()
